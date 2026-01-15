@@ -1,0 +1,232 @@
+{
+  "name": "trace-viz",
+  "displayName": "trace-viz",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:traceViz.approach",
+    "onView:traceViz.history",
+    "onCommand:trace-viz.openSettings",
+    "onCommand:trace-viz.browseCodeModelExtractorJar",
+    "onCommand:trace-viz.csvDirect",
+    "onCommand:trace-viz.refreshHistory",
+    "onCommand:trace-viz.openArDoCoWebview",
+    "onCommand:trace-viz.openLissaWebview",
+    "onCommand:trace-viz.ardoCoGenerateModel",
+    "onCommand:trace-viz.ardoCoGenerateLinks",
+    "onCommand:trace-viz.sadCode",
+    "onCommand:trace-viz.samCode",
+    "onCommand:trace-viz.sadSam",
+    "onCommand:trace-viz.sadSamCode",
+    "onCommand:trace-viz.compressHistoryCsv"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Trace-Viz",
+      "properties": {
+        "trace-viz.codeModelExtractorJar": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "title": "Code Model Extractor",
+          "markdownDescription": "Please select the code model extractor jar. [(Browse…)](command:trace-viz.browseCodeModelExtractorJar) \n\n The code model extractor can be downloaded from [(here.)](https://github.com/ArDoCo/CodeModelExtractorCLI)"
+        },
+        "trace-viz.logLevel": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+          "enumDescriptions": [
+            "Show all log messages including debug information",
+            "Show informational, warning, and error messages",
+            "Show only warning and error messages",
+            "Show only error messages"
+          ],
+          "default": "INFO",
+          "scope": "window",
+          "title": "Log Level",
+          "description": "Controls the verbosity of logging. DEBUG shows all messages, ERROR shows only errors."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "trace-viz.openSettings",
+        "title": "Open Trace Viz Settings",
+        "icon": "$(settings)"
+      },
+      {
+        "command": "trace-viz.browseCodeModelExtractorJar",
+        "title": "Browse Code Model Extractor JAR…"
+      },
+      {
+        "command": "trace-viz.csvDirect",
+        "title": "Select CSV File"
+      },
+      {
+        "command": "trace-viz.refreshHistory",
+        "title": "Refresh Trace History"
+      },
+      {
+        "command": "trace-viz.openArDoCoWebview",
+        "title": "Configure ArDoCo",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "trace-viz.openLissaWebview",
+        "title": "Configure LiSSA",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "trace-viz.ardoCoGenerateModel",
+        "title": "Generate Code Model"
+      },
+      {
+        "command": "trace-viz.ardoCoGenerateLinks",
+        "title": "Generate Trace Links"
+      },
+      {
+        "command": "trace-viz.sadCode",
+        "title": "Generate SAD-Code Trace Links"
+      },
+      {
+        "command": "trace-viz.samCode",
+        "title": "Generate SAM-Code Trace Links"
+      },
+      {
+        "command": "trace-viz.sadSam",
+        "title": "Generate SAD-SAM Trace Links"
+      },
+      {
+        "command": "trace-viz.sadSamCode",
+        "title": "Generate SAD-SAM-Code Trace Links"
+      },
+      {
+        "command": "trace-viz.showVisualization",
+        "title": "Show Visualization",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "trace-viz.hideVisualization",
+        "title": "Hide Visualization",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "trace-viz.cycleVisualizationColor",
+        "title": "Cycle Visualization Color",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "trace-viz.openDocumentation",
+        "title": "Open Documentation"
+      },
+      {
+        "command": "trace-viz.openCsv",
+        "title": "Open CSV",
+        "icon": "$(go-to-file)"
+      }
+      ,
+      {
+        "command": "trace-viz.compressHistoryCsv",
+        "title": "Compress Trace Links (Group by Directory)",
+        "icon": "$(folder)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "traceViz",
+          "title": "Trace-Viz",
+          "icon": "$(link)"
+        }
+      ]
+    },
+    "views": {
+      "traceViz": [
+        {
+          "id": "traceViz.approach",
+          "name": "Traceability Approach"
+        },
+        {
+          "id": "traceViz.history",
+          "name": "Trace History"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "trace-viz.openSettings",
+          "when": "view == traceViz.approach",
+          "group": "navigation@99"
+        },
+        {
+          "command": "trace-viz.openSettings",
+          "when": "view == traceViz.history",
+          "group": "navigation@99"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "trace-viz.openArDoCoWebview",
+          "when": "view == traceViz.approach && viewItem == traceViz.ardoCoConfig",
+          "group": "inline@1"
+        },
+        {
+          "command": "trace-viz.showVisualization",
+          "when": "view == traceViz.history && viewItem =~ /traceViz\\.historyItem-inactive(\\-sadcode)?/",
+          "group": "inline@1"
+        },
+        {
+          "command": "trace-viz.cycleVisualizationColor",
+          "when": "view == traceViz.history",
+          "group": "inline@2"
+        },
+        {
+          "command": "trace-viz.hideVisualization",
+          "when": "view == traceViz.history && viewItem =~ /traceViz\\.historyItem-active(\\-sadcode)?/",
+          "group": "inline@1"
+        },
+        {
+          "command": "trace-viz.openCsv",
+          "when": "view == traceViz.history",
+          "group": "inline@9"
+        },
+        {
+          "command": "trace-viz.compressHistoryCsv",
+          "when": "view == traceViz.history && (viewItem == traceViz.historyItem-inactive-sadcode || viewItem == traceViz.historyItem-active-sadcode || viewItem == traceViz.historyItem-inactive-csvdirect || viewItem == traceViz.historyItem-active-csvdirect)",
+          "group": "inline@3"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.103.0",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.23.0",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@types/node-fetch": "^2.6.13",
+    "form-data": "^4.0.4",
+    "node-fetch": "^3.3.2"
+  }
+}
