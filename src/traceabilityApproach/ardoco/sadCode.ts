@@ -73,9 +73,9 @@ function createSadCodeHistoryEntry(): TraceHistoryEntry {
             second: "2-digit",
             hour12: false,
         }),
-        approach: 'SAD-Code',
+        approach: 'ArDoCode (SAD-Code)',
         csvPath: '', // Will be set when results are received
-        originalName: 'SAD-Code Trace Links',
+        originalName: 'ArDoCode (SAD-Code) Trace Links',
         status: 'loading',
         requestId: '',
         active: false,
@@ -139,7 +139,7 @@ export async function generateSadCodeTraceLinks(): Promise<void> {
         // Poll for results with progress indicator
         const result = await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: "Generating SAD-Code Trace Links",
+            title: "Generating ArDoCode (SAD-Code) Trace Links",
             cancellable: true
         }, async (progress, token) => {
             return await ArDoCoApiUtil.pollForResults(config, startResponse.requestId, {
@@ -160,7 +160,7 @@ export async function generateSadCodeTraceLinks(): Promise<void> {
     } catch (error) {
         historyEntry.status = 'error';
         updateTraceHistoryEntry(workspaceFolder, historyEntry);
-        vscode.window.showErrorMessage(`Failed to generate SAD-Code trace links: ${error}`);
+        vscode.window.showErrorMessage(`Failed to generate ArDoCode (SAD-Code) trace links: ${error}`);
         vscode.commands.executeCommand('trace-viz.refreshHistory');
     }
 }
@@ -234,7 +234,7 @@ async function handleSuccessfulPollResult(
     };
 
     await saveTraceLinkResults(normalizedResult, requestId, workspaceFolder, historyEntry);
-    vscode.window.showInformationMessage('SAD-Code trace links generated successfully!');
+    vscode.window.showInformationMessage('ArDoCode (SAD-Code) trace links generated successfully!');
     vscode.commands.executeCommand('trace-viz.refreshHistory');
 }
 

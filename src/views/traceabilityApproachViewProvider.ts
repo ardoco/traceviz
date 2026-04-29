@@ -46,17 +46,17 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
         if (!element) {
             return Promise.resolve([
                 new ApproachItem('CSV Direct', vscode.TreeItemCollapsibleState.None),
-                new ApproachItem('ArDoCo', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoItem'),
+                new ApproachItem('ARDoCo', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoItem'),
                 new ApproachItem('LiSSA', vscode.TreeItemCollapsibleState.None)
             ]);
         }
-        if (element.label === 'ArDoCo') {
+        if (element.label === 'ARDoCo') {
             const hasConfig = checkArDoCoConfigExists();
             const hasCodeModel = checkArDoCoCodeModelExists();
             const hasTraceLinks = checkArDoCoTraceLinksExist();
             const traceLinksPrerequisitesMet = hasConfig && hasCodeModel;
             return Promise.resolve([
-                new ApproachItem('ArDoCo Config', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoConfig', hasConfig),
+                new ApproachItem('ARDoCo Config', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoConfig', hasConfig),
                 new ApproachItem('Generate Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoGenerateModel', hasCodeModel, hasConfig, hasConfig && !hasCodeModel),
                 new ApproachItem('Generate Trace Links', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoGenerateLinks', undefined, undefined, traceLinksPrerequisitesMet)
             ]);
@@ -68,10 +68,10 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
             const sadCodePrerequisitesMet = checkSadCodePrerequisites();
             
             return Promise.resolve([
-                new ApproachItem('SAM-Code', vscode.TreeItemCollapsibleState.None, 'traceViz.samCode', undefined, samCodePrerequisitesMet, samCodePrerequisitesMet),
-                new ApproachItem('SAD-SAM', vscode.TreeItemCollapsibleState.None, 'traceViz.sadSam', undefined, sadSamPrerequisitesMet, sadSamPrerequisitesMet),
-                new ApproachItem('SAD-SAM-Code', vscode.TreeItemCollapsibleState.None, 'traceViz.sadSamCode', undefined, sadSamCodePrerequisitesMet, sadSamCodePrerequisitesMet),
-                new ApproachItem('SAD-Code', vscode.TreeItemCollapsibleState.None, 'traceViz.sadCode', undefined, sadCodePrerequisitesMet, sadCodePrerequisitesMet)
+                new ApproachItem('ArCoTL (SAM-Code)', vscode.TreeItemCollapsibleState.None, 'traceViz.samCode', undefined, samCodePrerequisitesMet, samCodePrerequisitesMet),
+                new ApproachItem('SWATTR (SAD-SAM)', vscode.TreeItemCollapsibleState.None, 'traceViz.sadSam', undefined, sadSamPrerequisitesMet, sadSamPrerequisitesMet),
+                new ApproachItem('TransArC (SAD-SAM-Code)', vscode.TreeItemCollapsibleState.None, 'traceViz.sadSamCode', undefined, sadSamCodePrerequisitesMet, sadSamCodePrerequisitesMet),
+                new ApproachItem('ArDoCode (SAD-Code)', vscode.TreeItemCollapsibleState.None, 'traceViz.sadCode', undefined, sadCodePrerequisitesMet, sadCodePrerequisitesMet)
             ]);
         }
         return Promise.resolve([]);
@@ -125,35 +125,35 @@ export class ApproachItem extends vscode.TreeItem {
                 command: 'trace-viz.openLissaWebview',
                 title: 'Open LiSSA Configuration'
             };
-        } else if (label === 'ArDoCo Config') {
+        } else if (label === 'ARDoCo Config') {
             this.command = {
                 command: 'trace-viz.openArDoCoWebview',
-                title: 'Open ArDoCo Configuration'
+                title: 'Open ARDoCo Configuration'
             };
         } else if (label === 'Generate Code Model' && isEnabled) {
             this.command = {
                 command: 'trace-viz.ardoCoGenerateModel',
                 title: 'Generate Code Model'
             };
-        } else if (label === 'SAD-Code' && isEnabled) {
+        } else if (label === 'ArDoCode (SAD-Code)' && isEnabled) {
             this.command = {
                 command: 'trace-viz.sadCode',
-                title: 'Generate SAD-Code Trace Links'
+                title: 'Generate ArDoCode (SAD-Code) Trace Links'
             };
-        } else if (label === 'SAM-Code' && isEnabled) {
+        } else if (label === 'ArCoTL (SAM-Code)' && isEnabled) {
             this.command = {
                 command: 'trace-viz.samCode',
-                title: 'Generate SAM-Code Trace Links'
+                title: 'Generate ArCoTL (SAM-Code) Trace Links'
             };
-        } else if (label === 'SAD-SAM' && isEnabled) {
+        } else if (label === 'SWATTR (SAD-SAM)' && isEnabled) {
             this.command = {
                 command: 'trace-viz.sadSam',
-                title: 'Generate SAD-SAM Trace Links'
+                title: 'Generate SWATTR (SAD-SAM) Trace Links'
             };
-        } else if (label === 'SAD-SAM-Code' && isEnabled) {
+        } else if (label === 'TransArC (SAD-SAM-Code)' && isEnabled) {
             this.command = {
                 command: 'trace-viz.sadSamCode',
-                title: 'Generate SAD-SAM-Code Trace Links'
+                title: 'Generate TransArC (SAD-SAM-Code) Trace Links'
             };
         }
     }

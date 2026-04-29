@@ -44,7 +44,7 @@ export function registerOpenDocumentationCommand(context: vscode.ExtensionContex
         if (docPath && fs.existsSync(docPath)) {
             vscode.commands.executeCommand('vscode.open', vscode.Uri.file(docPath));
         } else {
-            vscode.window.showWarningMessage('Documentation file not found in ArDoCo config.');
+            vscode.window.showWarningMessage('Documentation file not found in ARDoCo config.');
         }
     }));
 }

@@ -29,18 +29,18 @@ export function getArDoCoConfigWebviewHtml(config: ArDoCoConfig): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArDoCo Configuration</title>
+    <title>ARDoCo Configuration</title>
     <style>
 ${CONFIG_WEBVIEW_CSS}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>ArDoCo Configuration</h1>
+        <h1>ARDoCo Configuration</h1>
         
         <div class="info-box">
             <strong>ARDoCo (Automating Requirements and Documentation Comprehension)</strong><br>
-            Configure the ArDoCo traceability approach. 
+            Configure the ARDoCo traceability approach. 
         </div>
 
         <form id="ardoCoForm">
