@@ -12,8 +12,7 @@ import { registerCsvDirectCommand } from './traceabilityApproach/csv/csvDirect';
 import { registerArDoCoWebviewCommand } from './traceabilityApproach/ardoco/configArDoCo';
 import { registerLissaWebviewCommand } from './traceabilityApproach/lissa/configLissa';
 import { generateArDoCoCodeModel } from './traceabilityApproach/ardoco/generateArDoCoCodeModel';
-import { generateSadCodeTraceLinks } from './traceabilityApproach/ardoco/sadCode';
-import { generateTransArcTraceLinks } from './traceabilityApproach/ardoco/transArc';
+import { generateSadCodeTraceLinks, generateTransArcTraceLinks } from './traceabilityApproach/ardoco/generateTraceLinks';
 import {
     CONSTANTS_VIEW_ID_APPROACH,
     CONSTANTS_VIEW_ID_HISTORY,
