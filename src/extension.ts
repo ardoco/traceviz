@@ -13,6 +13,7 @@ import { registerArDoCoWebviewCommand } from './traceabilityApproach/ardoco/conf
 import { registerLissaWebviewCommand } from './traceabilityApproach/lissa/configLissa';
 import { generateArDoCoCodeModel } from './traceabilityApproach/ardoco/generateArDoCoCodeModel';
 import { generateSadCodeTraceLinks } from './traceabilityApproach/ardoco/sadCode';
+import { generateTransArcTraceLinks } from './traceabilityApproach/ardoco/transArc';
 import {
     CONSTANTS_VIEW_ID_APPROACH,
     CONSTANTS_VIEW_ID_HISTORY,
@@ -112,8 +113,8 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(sadSam);
 
-	const sadSamCode = vscode.commands.registerCommand(CONSTANTS_COMMAND_SAD_SAM_CODE, () => {
-		vscode.window.showInformationMessage('SAD-SAM-Code trace links (not implemented yet)');
+	const sadSamCode = vscode.commands.registerCommand(CONSTANTS_COMMAND_SAD_SAM_CODE, async () => {
+		await generateTransArcTraceLinks();
 	});
 	context.subscriptions.push(sadSamCode);
 

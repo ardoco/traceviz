@@ -24,6 +24,8 @@ export interface StartTraceLinkRequestOptions {
     codeModelFile?: string;
     /** Path to architecture model file */
     architectureModelPath?: string;
+    /** Format of the architecture model (PCM, UML, COMPONENT_LISTING, ACM) */
+    architectureModelFormat?: string;
 }
 
 /**
@@ -86,9 +88,9 @@ export class ArDoCoApiUtil {
     private static getEndpointUrl(traceLinkType: ArDoCoTraceLinkType): string {
         const endpointMap: Record<ArDoCoTraceLinkType, string> = {
             [ARDOCO_TRACE_LINK_TYPE.SAD_CODE]: 'ardocode',
-            [ARDOCO_TRACE_LINK_TYPE.SAM_CODE]: 'sam-code',
-            [ARDOCO_TRACE_LINK_TYPE.SAD_SAM]: 'sad-sam',
-            [ARDOCO_TRACE_LINK_TYPE.SAD_SAM_CODE]: 'sad-sam-code'
+            [ARDOCO_TRACE_LINK_TYPE.SAM_CODE]: 'arcotl',
+            [ARDOCO_TRACE_LINK_TYPE.SAD_SAM]: 'swattr',
+            [ARDOCO_TRACE_LINK_TYPE.SAD_SAM_CODE]: 'transarc'
         };
         return endpointMap[traceLinkType] || 'ardocode';
     }
@@ -115,10 +117,10 @@ export class ArDoCoApiUtil {
         }
 
         if (options.architectureModelPath && fs.existsSync(options.architectureModelPath)) {
-            formData.append('inputArchitecture', fs.createReadStream(options.architectureModelPath), {
+            formData.append('inputArchitectureModel', fs.createReadStream(options.architectureModelPath), {
                 filename: path.basename(options.architectureModelPath)
             });
-            Logger.debug('Added inputArchitecture to form data:', options.architectureModelPath);
+            Logger.debug('Added inputArchitectureModel to form data:', options.architectureModelPath);
         }
 
         return formData;
@@ -179,7 +181,10 @@ export class ArDoCoApiUtil {
         options: StartTraceLinkRequestOptions
     ): Promise<StartTraceLinkResponse> {
         const endpoint = this.getEndpointUrl(options.traceLinkType);
-        const requestUrl = `${config.restApiUrl}/api/${endpoint}/start?projectName=${encodeURIComponent(config.projectName)}`;
+        let requestUrl = `${config.restApiUrl}/api/${endpoint}/start?projectName=${encodeURIComponent(config.projectName)}`;
+        if (options.architectureModelFormat) {
+            requestUrl += `&inputArchitectureModelFormat=${encodeURIComponent(options.architectureModelFormat)}`;
+        }
         
         const formData = this.prepareFormData(options);
         Logger.debug('Form data prepared for', options.traceLinkType);
