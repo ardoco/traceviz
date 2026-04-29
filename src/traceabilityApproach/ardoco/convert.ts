@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import { SadCodeResponse } from '../../types';
+import { Logger } from '../../utils/logger.util';
 
 /**
  * Types of trace link conversions supported
@@ -14,6 +15,8 @@ export interface ConversionJob {
     type: TraceLinkConversionType;
     /** Input data for the conversion (format depends on type) */
     input: unknown;
+    /** Absolute path to the ACM code model JSON file (required for ARDOCO_SAD_CODE_TO_CSV to resolve paths) */
+    codeModelPath?: string;
 }
 
 /**
@@ -25,7 +28,7 @@ export interface ConversionJob {
 export function convert(job: ConversionJob): string {
     switch (job.type) {
         case 'ARDOCO_SAD_CODE_TO_CSV':
-            return convertArDoCoSadCodeToCsv(job.input as SadCodeResponse);
+            return convertArDoCoSadCodeToCsv(job.input as SadCodeResponse, job.codeModelPath);
         case 'CSV_COMPRESS_BY_DIRECTORY':
             return compressCsvByDirectory(job.input as string);
         default:
@@ -38,25 +41,90 @@ export function convert(job: ConversionJob): string {
  * @param result ArDoCo API response object with traceLinks array
  * @returns CSV string with sentenceID and codeID columns
  */
-export function convertArDoCoSadCodeToCsv(result: SadCodeResponse | { traceLinks?: any[] }): string {
+export function convertArDoCoSadCodeToCsv(
+    result: SadCodeResponse | { traceLinks?: any[] },
+    codeModelPath?: string
+): string {
     const lines: string[] = ['sentenceID,codeID'];
     const traceLinks = result.traceLinks || (result as any).result?.traceLinks;
+
+    let codeModel: Record<string, any> | undefined;
+    if (codeModelPath && fs.existsSync(codeModelPath)) {
+        try {
+            const raw = JSON.parse(fs.readFileSync(codeModelPath, 'utf8'));
+            codeModel = raw?.codeItemRepository?.repository ?? raw?.codeItemRepository ?? raw;
+            Logger.debug(`convertArDoCoSadCodeToCsv: loaded code model from ${codeModelPath}`);
+        } catch (e) {
+            Logger.error('convertArDoCoSadCodeToCsv: failed to load code model:', e);
+        }
+    } else if (codeModelPath) {
+        Logger.warn(`convertArDoCoSadCodeToCsv: code model file not found: ${codeModelPath}`);
+    }
     
-    if (traceLinks && Array.isArray(traceLinks)) {
-        for (const link of traceLinks) {
-            // Handle new API format with codeElementId
-            const codeId = link.codeElementId || link.codeCompilationUnit;
-            const sentenceNumber = link.sentenceNumber;
-            
-            if (sentenceNumber !== undefined && codeId) {
-                // Convert sentenceNumber to string (it may be string or number from API)
-                const sentence = String(sentenceNumber);
-                const code = csvEscape(codeId);
-                lines.push(`${sentence},${code}`);
-            }
+    if (!traceLinks || !Array.isArray(traceLinks)) {
+        Logger.warn('convertArDoCoSadCodeToCsv: no traceLinks array found in result');
+        return lines.join('\n');
+    }
+
+    Logger.debug(`convertArDoCoSadCodeToCsv: ${traceLinks.length} trace links to convert, codeModel present: ${!!codeModel}`);
+    let resolved = 0;
+    let unresolved = 0;
+
+    for (const link of traceLinks) {
+        const sentenceNumber = link.sentenceNumber;
+        const codeElementId = link.codeElementId;
+
+        const codeId = resolveCodePath(codeElementId, codeModel) ?? link.codeCompilationUnit;
+
+        if (sentenceNumber !== undefined && codeId) {
+            // API returns 0-indexed sentence numbers; CSV format is 1-indexed
+            const sentence = String(Number(sentenceNumber) + 1);
+            lines.push(`${sentence},${csvEscape(codeId)}`);
+            resolved++;
+        } else {
+            Logger.warn(`convertArDoCoSadCodeToCsv: could not resolve codeElementId "${codeElementId}" (sentence ${sentenceNumber})`);
+            unresolved++;
         }
     }
+
+    Logger.debug(`convertArDoCoSadCodeToCsv: resolved=${resolved}, unresolved=${unresolved}`);
     return lines.join('\n');
+}
+
+/**
+ * Resolves a codeElementId from the ACM repository to its file path.
+ * Handles CodeCompilationUnit directly, and ClassUnit / ControlElement by
+ * following compilationUnitId up to the CodeCompilationUnit.
+ */
+function resolveCodePath(id: string, codeModel?: Record<string, any>): string | null {
+    if (!id || !codeModel) {
+        return null;
+    }
+    const entry = codeModel[id];
+    if (!entry) {
+        Logger.debug(`resolveCodePath: id "${id}" not found in code model`);
+        return null;
+    }
+    if (entry.type === 'CodeCompilationUnit') {
+        return compilationUnitToPath(entry);
+    }
+    // ClassUnit has a direct compilationUnitId
+    if (entry.compilationUnitId) {
+        const cu = codeModel[entry.compilationUnitId];
+        if (cu && cu.type === 'CodeCompilationUnit') {
+            return compilationUnitToPath(cu);
+        }
+    }
+    Logger.debug(`resolveCodePath: unsupported entry type "${entry.type}" for id "${id}"`);
+    return null;
+}
+
+function compilationUnitToPath(entry: any): string | null {
+    if (Array.isArray(entry.pathElements) && entry.name && entry.extension) {
+        return [...entry.pathElements, `${entry.name}.${entry.extension}`].join('/');
+    }
+    Logger.debug(`compilationUnitToPath: missing pathElements/name/extension for id "${entry.id}"`);
+    return null;
 }
 
 function csvEscape(value: string): string {

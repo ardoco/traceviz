@@ -20,13 +20,13 @@ function validateSadCodePrerequisites(): {
         vscode.window.showErrorMessage('No workspace open to generate trace links.');
         return null;
     }
-    
+
     const configFile = TraceVizStorageUtil.getStorageFilePath(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
     if (!configFile || !fs.existsSync(configFile)) {
         vscode.window.showErrorMessage('ArDoCo configuration not found. Please configure ArDoCo first.');
         return null;
     }
-    
+
     const codeModelFile = TraceVizStorageUtil.getStorageFilePath(
         CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL,
         workspaceFolder
@@ -174,20 +174,21 @@ async function saveTraceLinkResults(
     workspaceFolder: vscode.WorkspaceFolder,
     historyEntry: TraceHistoryEntry
 ): Promise<string> {
-    const csv = convert({ type: 'ARDOCO_SAD_CODE_TO_CSV', input: result });
+    const codeModelPath = TraceVizStorageUtil.getStorageFilePath(CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL, workspaceFolder) ?? undefined;
+    const csv = convert({ type: 'ARDOCO_SAD_CODE_TO_CSV', input: result, codeModelPath });
     const resultsFile = TraceVizStorageUtil.getStorageFilePath(
         `sad-code-results-${requestId}.csv`,
         workspaceFolder
     );
-    
+
     if (!resultsFile) {
         throw new Error('Failed to get storage directory path for results file');
     }
-    
+
     Logger.info('Attempting to save results CSV to:', resultsFile);
     writeTextFile(resultsFile, csv);
     Logger.info('Results CSV successfully saved to:', resultsFile);
-    
+
     // Verify the file was created
     if (fs.existsSync(resultsFile)) {
         const fileStats = fs.statSync(resultsFile);
@@ -195,12 +196,12 @@ async function saveTraceLinkResults(
     } else {
         Logger.error('File was not created!');
     }
-    
+
     // Update the history entry
     historyEntry.status = 'completed';
     historyEntry.csvPath = resultsFile;
     updateTraceHistoryEntry(workspaceFolder, historyEntry);
-    
+
     return resultsFile;
 }
 
@@ -217,21 +218,21 @@ async function handleSuccessfulPollResult(
     Logger.debug('traceLinks exists:', !!result.traceLinks);
     Logger.debug('traceLinks type:', typeof result.traceLinks);
     Logger.debug('traceLinks length:', result.traceLinks ? result.traceLinks.length : 'N/A');
-    
+
     // Check for traceLinks in result object (new API format) or at top level (normalized)
     const traceLinks = result.traceLinks || result.result?.traceLinks;
-    
+
     if (!traceLinks || !Array.isArray(traceLinks)) {
         Logger.warn('No trace links found in result');
         throw new Error('No trace links found in API response');
     }
-    
+
     // Normalize result for conversion function
     const normalizedResult = {
         ...result,
         traceLinks: traceLinks
     };
-    
+
     await saveTraceLinkResults(normalizedResult, requestId, workspaceFolder, historyEntry);
     vscode.window.showInformationMessage('SAD-Code trace links generated successfully!');
     vscode.commands.executeCommand('trace-viz.refreshHistory');
@@ -269,12 +270,12 @@ function saveTraceHistoryEntry(workspaceFolder: vscode.WorkspaceFolder, entry: T
 
 function updateTraceHistoryEntry(workspaceFolder: vscode.WorkspaceFolder, updatedEntry: TraceHistoryEntry): void {
     Logger.debug('Updating trace history entry:', updatedEntry.id, 'with status:', updatedEntry.status);
-    
+
     const history = TraceVizStorageUtil.readJsonFile<TraceHistoryEntry[]>(
         CONSTANTS_FILE_PATH_HISTORY,
         workspaceFolder
     );
-    
+
     if (!history) {
         Logger.warn('History file does not exist');
         return;
@@ -283,7 +284,7 @@ function updateTraceHistoryEntry(workspaceFolder: vscode.WorkspaceFolder, update
     try {
         const index = history.findIndex(entry => entry.id === updatedEntry.id);
         Logger.debug('Found entry at index:', index);
-        
+
         if (index !== -1) {
             history[index] = updatedEntry;
             TraceVizStorageUtil.writeJsonFile(
