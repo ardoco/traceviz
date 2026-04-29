@@ -68,8 +68,8 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
             const sadCodePrerequisitesMet = checkSadCodePrerequisites();
             
             return Promise.resolve([
-                new ApproachItem('ArCoTL (SAM-Code)', vscode.TreeItemCollapsibleState.None, 'traceViz.samCode', undefined, samCodePrerequisitesMet, samCodePrerequisitesMet),
-                new ApproachItem('SWATTR (SAD-SAM)', vscode.TreeItemCollapsibleState.None, 'traceViz.sadSam', undefined, sadSamPrerequisitesMet, sadSamPrerequisitesMet),
+                new ApproachItem('ArCoTL (SAM-Code)', vscode.TreeItemCollapsibleState.None, 'traceViz.samCode', undefined, false, false, true),
+                new ApproachItem('SWATTR (SAD-SAM)', vscode.TreeItemCollapsibleState.None, 'traceViz.sadSam', undefined, false, false, true),
                 new ApproachItem('TransArC (SAD-SAM-Code)', vscode.TreeItemCollapsibleState.None, 'traceViz.sadSamCode', undefined, sadSamCodePrerequisitesMet, sadSamCodePrerequisitesMet),
                 new ApproachItem('ArDoCode (SAD-Code)', vscode.TreeItemCollapsibleState.None, 'traceViz.sadCode', undefined, sadCodePrerequisitesMet, sadCodePrerequisitesMet)
             ]);
@@ -97,11 +97,18 @@ export class ApproachItem extends vscode.TreeItem {
         public readonly contextValue?: string,
         public readonly isComplete?: boolean,
         public readonly isEnabled?: boolean,
-        public readonly prerequisitesMet?: boolean
+        public readonly prerequisitesMet?: boolean,
+        public readonly notSupported?: boolean
     ) {
         super(label, collapsibleState);
         this.contextValue = contextValue || 'traceViz.approachItem';
-        
+
+        if (notSupported) {
+            this.iconPath = new vscode.ThemeIcon('dash');
+            this.tooltip = 'Not supported yet';
+            return;
+        }
+
         // Add status icon
         if (isComplete === true) {
             // Task completed - green check
