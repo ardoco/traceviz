@@ -47,6 +47,18 @@ export class DecorationService {
     }
 
     /**
+     * Creates a URI for a single coloured circle icon (for use as a TreeItem iconPath).
+     * Because the colour is embedded in the SVG it is not overridden by VS Code's
+     * list-selection foreground, unlike a ThemeIcon with ThemeColor.
+     * @param colorHex Hex colour code (e.g. '#1f6feb')
+     * @returns URI pointing to an inline SVG data-URI
+     */
+    static createCircleIconUri(colorHex: string): vscode.Uri {
+        const svg = `<svg width="${CONSTANTS_NUMBER_SVG_WIDTH}" height="${CONSTANTS_NUMBER_SVG_HEIGHT}" viewBox="0 0 ${CONSTANTS_NUMBER_SVG_WIDTH} ${CONSTANTS_NUMBER_SVG_HEIGHT}" xmlns="${CONSTANTS_STRING_SVG_NAMESPACE}"><circle cx="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_X}" cy="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_Y}" r="${CONSTANTS_NUMBER_SVG_CIRCLE_RADIUS}" fill="${colorHex}" stroke="${colorHex}" stroke-width="${CONSTANTS_NUMBER_SVG_CIRCLE_STROKE_WIDTH}"/></svg>`;
+        return vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + Buffer.from(svg).toString('base64'));
+    }
+
+    /**
      * Creates a composite decoration for multiple colors
      * @param colors Array of visualization colors (max 2)
      * @returns Text editor decoration type

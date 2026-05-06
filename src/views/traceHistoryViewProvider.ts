@@ -1,6 +1,13 @@
 import * as vscode from 'vscode';
 import { getTraceHistory } from '../traceabilityApproach/csv/csvDirect';
 import { VizColor, TraceHistoryEntry } from '../types';
+import { DecorationService } from '../services/decoration.service';
+import {
+    CONSTANTS_COLOR_HEX_BLUE,
+    CONSTANTS_COLOR_HEX_RED,
+    CONSTANTS_COLOR_HEX_ORANGE,
+    CONSTANTS_COLOR_HEX_GREEN
+} from '../constants';
 
 /**
  * Tree data provider for the Trace History view
@@ -96,14 +103,6 @@ export class HistoryItem extends vscode.TreeItem {
             arguments: [this.historyId]
         };
 
-        // View item actions
-        const colorToThemeColor: Record<VizColor, string> = {
-            blue: 'charts.blue',
-            red: 'charts.red',
-            orange: 'charts.orange',
-            green: 'charts.green'
-        };
-
         this.resourceUri = this.csvPath ? vscode.Uri.file(this.csvPath) : undefined;
         const baseContext = this.active ? 'traceViz.historyItem-active' : 'traceViz.historyItem-inactive';
         if (this.label) {
@@ -120,7 +119,13 @@ export class HistoryItem extends vscode.TreeItem {
         }
         this.description = this.active ? `${timestamp ?? ''} | visualizing • ${this.color}` : this.description;
         if (this.active && this.color) {
-            this.iconPath = new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor(colorToThemeColor[this.color]));
+            const colorHex: Record<VizColor, string> = {
+                blue: CONSTANTS_COLOR_HEX_BLUE,
+                red: CONSTANTS_COLOR_HEX_RED,
+                orange: CONSTANTS_COLOR_HEX_ORANGE,
+                green: CONSTANTS_COLOR_HEX_GREEN
+            };
+            this.iconPath = DecorationService.createCircleIconUri(colorHex[this.color]);
         }
 
         // Pass the item itself to commands so handlers can read historyId
