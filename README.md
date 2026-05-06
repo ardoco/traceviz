@@ -1,127 +1,92 @@
-# trace-viz
+# TraceViz
 
-trace-viz is a Visual Studio Code extension that integrates generated or imported trace links directly into the IDE. The extension supports multiple trace visualization modes such as sentence-to-file and file-to-file. It enables interactive exploration of trace links through inline markers, context tooltips, and quick navigation.
+**TraceViz** is a Visual Studio Code extension that brings software architecture trace links directly into the developer's editing context.
+It visualizes links between natural language **Software Architecture Documentation (SAD)** and **source code** as colored gutter markers, enabling one-click navigation from any documentation sentence to the linked code files — and back — without leaving the IDE.
+
+![Overview](.images/traceviz-overview.png)
+
+*Colored gutter dots mark SAD-Code trace links. Hovering a line reveals per-set counts and a Quick Pick listing linked code files for one-click navigation. The sidebar shows available TLR approaches and trace history.*
+
+---
 
 ## Features
 
-- **Multiple Traceability Approaches**: Support for [ArDoCo](https://github.com/ardoco/ardoco), [LiSSA](https://github.com/ArDoCo/LiSSA), and direct CSV imports
-- **Interactive Visualization**: Inline code decorations showing trace links
-- **Trace History**: Track and manage multiple trace link results
-- **Flexible Configuration**: Configure traceability approaches through VS Code settings
-- **CSV Support**: Import trace links directly from CSV files
-- **Code Model Generation**: Generate code models from Java projects
+- **Gutter markers** — lines with trace links are annotated with a colored dot; the color identifies the active trace link set
+- **Hover tooltips** — hovering a marked line shows the number of linked files per set
+- **Quick Pick navigation** — click a gutter dot, CodeLens annotation, or the status bar button to open a Quick Pick list of linked files for one-click navigation
+- **Side-by-side comparison** — up to two trace link sets can be loaded simultaneously in distinct colors (e.g., blue for ArDoCode, red for TransArC)
+- **Directory heuristic** — when all files in a folder link to the same line, a single directory-level dot replaces per-file markers, reducing visual noise
+- **Trace History** — past runs are persisted in a history panel and can be re-activated with one click
+- **Multiple trace link sources**:
+  - **ARDoCo REST API** — ArDoCode (SAD-Code) and TransArC (SAD-SAM-Code) via [rest.ardoco.de](https://rest.ardoco.de)
+  - **LiSSA** — generic RAG-based TLR via a local JAR invocation
+  - **CSV Direct** — import trace links from any tool producing the expected format
 
 ## Getting Started
 
 ### Prerequisites
 
 - Visual Studio Code `^1.100.0`
-- Node.js and npm (for development)
-- (Optional) [Java code model extractor](https://github.com/ardoco/code-model-extractor-cli) for advanced features
+- (Optional) A [code model extractor JAR](https://github.com/ardoco/code-model-extractor-cli) for generating code models from Java projects
 
-### Installation
+### Running the Extension (Development)
 
-1. **Clone the repository**:
+1. **Clone and install dependencies**:
    ```bash
    git clone https://github.com/ardoco/traceviz.git
    cd traceviz
-   ```
-   See [package.json](package.json) for project metadata and dependencies.
-
-2. **Install dependencies**:
-   ```bash
    npm install
    ```
 
-3. **Compile the extension**:
-   ```bash
-   npm run compile
-   ```
-
-### Running the Extension
-
-#### Development Mode
-
-1. **Start the TypeScript compiler in watch mode**:
+2. **Start the TypeScript compiler in watch mode**:
    ```bash
    npm run watch
    ```
 
-2. **Launch the extension**:
-   - Press `F5` in VS Code, or
-   - Go to **Run → Start Debugging** menu
-
-   This will open a new VS Code window with the extension loaded.
-
-3. **Activate the extension** by:
-   - Opening the "Trace-Viz" view in the activity bar
-   - Or executing any trace-viz command
-
-#### Production Build
-
-To package the extension for production:
-```bash
-npm run compile
-```
+3. **Launch the extension**: press `F5` in VS Code (or **Run → Start Debugging**).
+   A new Extension Development Host window opens with TraceViz active.
 
 ### Usage
 
-1. **Open a project folder** in VS Code
-2. **Access Trace-Viz** from the activity bar (link icon)
-3. **Choose a traceability approach** (see [src/traceabilityApproach/](src/traceabilityApproach/) for implementations):
-   - **[ArDoCo](https://github.com/ardoco/ardoco)**: Configure and run ArDoCo for automated traceability (see [configArDoCo.ts](src/traceabilityApproach/ardoco/configArDoCo.ts))
-   - **[LiSSA](https://github.com/ArDoCo/LiSSA)**: Configure and run LiSSA for learning-based traceability (see [configLissa.ts](src/traceabilityApproach/lissa/configLissa.ts))
-   - **CSV Direct**: Import pre-generated trace links from CSV files (see [csvDirect.ts](src/traceabilityApproach/csv/csvDirect.ts))
-
-4. **View and manage** trace results in the "Trace History" panel
-5. **Visualize** trace links inline in your code
+1. **Open a project folder** in VS Code.
+2. **Access TraceViz** via the activity bar (chain link icon) — the sidebar shows two panels:
+   - **Traceability Approach** — configure and trigger a TLR run
+   - **Trace History** — browse and re-activate past results
+3. **Choose a trace link source**:
+   - **ARDoCo** → configure the REST API endpoint, select a pipeline (ArDoCode or TransArC), and generate trace links
+   - **LiSSA** → point to a local LiSSA JAR and run
+   - **CSV Direct** → import a CSV file with pre-generated trace links
+4. **Navigate** — gutter dots appear on every linked line. Hover for counts, click to open the Quick Pick navigator.
 
 ### Configuration
 
-Configure trace-viz in VS Code settings:
-
-- **`trace-viz.codeModelExtractorJar`**: Path to the code model extractor JAR file
-  - Required for generating code models
-  - Download from [code-model-extractor-cli](https://github.com/ardoco/code-model-extractor-cli)
-  - See [src/utils/ardocoApi.util.ts](src/utils/ardocoApi.util.ts) for implementation details
-
-- **`trace-viz.logLevel`**: Controls logging verbosity
-  - Options: `DEBUG`, `INFO`, `WARN`, `ERROR`
-  - Default: `INFO`
+| Setting | Description | Default |
+|---|---|---|
+| `trace-viz.codeModelExtractorJar` | Path to the [code model extractor JAR](https://github.com/ardoco/code-model-extractor-cli) | *(empty)* |
+| `trace-viz.logLevel` | Log verbosity: `DEBUG`, `INFO`, `WARN`, `ERROR` | `INFO` |
 
 ## Development
 
-### Available Commands
-
 ```bash
-# Compile TypeScript
-npm run compile
-
-# Watch mode (auto-compile on file changes)
-npm run watch
-
-# Run linter
-npm run lint
+npm run compile   # one-shot TypeScript build
+npm run watch     # continuous rebuild
+npm run lint      # ESLint
 ```
 
 ### Project Structure
 
-- [`src/commands/`](src/commands/) - VS Code command implementations (e.g., [browseJar.ts](src/commands/browseJar.ts), [visualization.ts](src/commands/visualization.ts))
-- [`src/services/`](src/services/) - Core business logic and utilities (e.g., [csvReader.service.ts](src/services/csvReader.service.ts), [decoration.service.ts](src/services/decoration.service.ts))
-- [`src/traceabilityApproach/`](src/traceabilityApproach/) - Traceability algorithm implementations ([ArDoCo](src/traceabilityApproach/ardoco/), [LiSSA](src/traceabilityApproach/lissa/), [CSV Direct](src/traceabilityApproach/csv/))
-- [`src/views/`](src/views/) - VS Code view providers (e.g., [traceabilityApproachViewProvider.ts](src/views/traceabilityApproachViewProvider.ts))
-- [`src/visualization/`](src/visualization/) - Visualization and decoration logic
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-- Code passes linting: `npm run lint`
-- TypeScript compilation succeeds: `npm run compile`
+| Path | Contents |
+|---|---|
+| [src/commands/](src/commands/) | VS Code command handlers |
+| [src/services/](src/services/) | Core services (CSV reader, decoration, path resolver, …) |
+| [src/traceabilityApproach/](src/traceabilityApproach/) | Approach implementations: [ardoco/](src/traceabilityApproach/ardoco/), [lissa/](src/traceabilityApproach/lissa/), [csv/](src/traceabilityApproach/csv/) |
+| [src/views/](src/views/) | Sidebar view providers |
+| [src/visualization/](src/visualization/) | Gutter decoration and line-to-file mapping logic |
 
 ## License
 
-See [LICENSE](LICENSE) file for details.
+See [LICENSE](LICENSE) for details.
 
 ## Acknowledgements
 
-This extension is a bachelor thesis implementation by Julian Winter.
+TraceViz was initially implemented by Julian Winter as part of his [bachelor's thesis](https://publikationen.bibliothek.kit.edu/1000192928) at KIT.
