@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 import { CONSTANTS_FILE_PATH_ARDOCO_CONFIG, CONSTANTS_FILE_PATH_ARDOCO_TRACE_LINKS } from '../constants';
 import { ArDoCoConfig } from '../types';
 import { TraceVizStorageUtil } from '../utils/traceVizStorage.util';
@@ -67,8 +68,12 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
             const hasCodeModel = checkArDoCoCodeModelExists();
             const hasTraceLinks = checkArDoCoTraceLinksExist();
             const traceLinksPrerequisitesMet = hasConfig && hasCodeModel;
+            const selectCodeModel = new ApproachItem('Select Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoSelectCodeModel', hasCodeModel, true, hasCodeModel);
+            selectCodeModel.description = getCodeModelFileName();
+            selectCodeModel.tooltip = 'Select an existing JSON code model (.acm/.json) that is sent to the ARDoCo REST API';
             return Promise.resolve([
                 new ApproachItem('ARDoCo Config', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoConfig', hasConfig),
+                selectCodeModel,
                 new ApproachItem('Generate Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoGenerateModel', hasCodeModel, hasConfig, hasConfig && !hasCodeModel),
                 new ApproachItem('Generate Trace Links', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoGenerateLinks', undefined, undefined, traceLinksPrerequisitesMet)
             ]);
@@ -161,6 +166,11 @@ export class ApproachItem extends vscode.TreeItem {
                 command: 'trace-viz.openArDoCoWebview',
                 title: 'Open ARDoCo Configuration'
             };
+        } else if (label === 'Select Code Model') {
+            this.command = {
+                command: 'trace-viz.ardoCoSelectCodeModel',
+                title: 'Select Code Model'
+            };
         } else if (label === 'Generate Code Model' && isEnabled) {
             this.command = {
                 command: 'trace-viz.ardoCoGenerateModel',
@@ -219,6 +229,11 @@ function fileExists(filePath?: string): boolean {
 
 function checkArDoCoCodeModelExists(): boolean {
     return fileExists(readConfigWithCodeModel()?.codeModelPath);
+}
+
+function getCodeModelFileName(): string | undefined {
+    const codeModelPath = readConfigWithCodeModel()?.codeModelPath;
+    return fileExists(codeModelPath) ? path.basename(codeModelPath!) : undefined;
 }
 
 function checkArDoCoTraceLinksExist(): boolean {

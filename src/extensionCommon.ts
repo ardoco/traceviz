@@ -6,6 +6,7 @@ import { registerLineToFileVisualization } from './visualization/lineToFileVisua
 import { TraceabilityApproachViewProvider } from './views/traceabilityApproachViewProvider';
 import { TraceHistoryViewProvider } from './views/traceHistoryViewProvider';
 import { registerCsvDirectCommand } from './traceabilityApproach/csv/csvDirect';
+import { registerArDoCoQuickConfigCommands } from './traceabilityApproach/ardoco/configArDoCoQuick';
 import {
     CONSTANTS_VIEW_ID_APPROACH,
     CONSTANTS_VIEW_ID_HISTORY,
@@ -66,6 +67,9 @@ export function registerCommonFeatures(context: vscode.ExtensionContext, options
 
     // Command: CSV Direct file picker
     registerCsvDirectCommand(context);
+
+    // Commands: ARDoCo configuration without the webview, selection of an existing code model
+    registerArDoCoQuickConfigCommands(context);
 
     // Command: Refresh Trace History
     const refreshHistory = vscode.commands.registerCommand(CONSTANTS_COMMAND_REFRESH_HISTORY, () => {
