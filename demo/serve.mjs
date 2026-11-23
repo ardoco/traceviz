@@ -2,7 +2,7 @@
 // Usage: npm run demo:serve [-- --port 8080 --base /traceviz/]
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { dirname, extname, join, normalize } from 'node:path';
+import { dirname, extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
@@ -23,8 +23,15 @@ createServer((request, response) => {
 		response.writeHead(302, { location: base }).end();
 		return;
 	}
-	let file = normalize(join(root, decodeURIComponent(url.pathname.substring(base.length))));
-	if (!file.startsWith(root)) {
+	let relative;
+	try {
+		relative = decodeURIComponent(url.pathname.substring(base.length));
+	} catch {
+		response.writeHead(400).end('Bad request');
+		return;
+	}
+	let file = normalize(join(root, relative));
+	if (file !== root && !file.startsWith(root + sep)) {
 		response.writeHead(403).end();
 		return;
 	}
