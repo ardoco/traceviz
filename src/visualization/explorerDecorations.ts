@@ -14,7 +14,7 @@ export interface DecoratedSet {
 
 /** Explorer badges hold at most two characters */
 function badgeFor(count: number): string {
-    return count > 99 ? '9+' : String(count);
+    return String(Math.min(count, 99));
 }
 
 function plural(count: number, word: string): string {
