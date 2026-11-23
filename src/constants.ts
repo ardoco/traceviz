@@ -170,11 +170,17 @@ export const CONSTANTS_NUMBER_MAX_COLORS_COMPOSITE = 2;
 /** Minimum percentage for CSV compression by directory */
 export const CONSTANTS_NUMBER_COMPRESS_MIN_PERCENT = 50;
 
-/** Maximum polling attempts for async operations */
-export const CONSTANTS_NUMBER_POLLING_MAX_ATTEMPTS = 5;
+/** Initial wait between two polls of an async REST request in milliseconds */
+export const CONSTANTS_NUMBER_POLLING_INITIAL_INTERVAL_MS = 2000;
 
-/** Polling wait time in milliseconds */
-export const CONSTANTS_NUMBER_POLLING_WAIT_MS = 60000;
+/** Maximum wait between two polls in milliseconds (the wait grows by CONSTANTS_NUMBER_POLLING_BACKOFF_FACTOR per poll) */
+export const CONSTANTS_NUMBER_POLLING_MAX_INTERVAL_MS = 15000;
+
+/** Growth factor of the wait between two polls */
+export const CONSTANTS_NUMBER_POLLING_BACKOFF_FACTOR = 1.5;
+
+/** Overall timeout for waiting on the result of an async REST request in milliseconds (10 minutes) */
+export const CONSTANTS_NUMBER_POLLING_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** JSON indentation spaces */
 export const CONSTANTS_NUMBER_JSON_INDENT = 2;

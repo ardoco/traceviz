@@ -19,7 +19,7 @@ export interface TraceHistoryEntry {
     /** Original name of the file or description */
     originalName: string;
     /** Current status of the trace link generation */
-    status?: 'loading' | 'completed' | 'error';
+    status?: 'loading' | 'completed' | 'error' | 'cancelled';
     /** Request ID for async operations (e.g., ArDoCo API requests) */
     requestId?: string;
     /** Whether this visualization is currently active */
@@ -51,4 +51,6 @@ export interface ActiveHistoryItem {
     name: string;
     /** Whether this set is a gold standard (explicit flag or "gold" in its name) */
     isGoldStandard: boolean;
+    /** Path to the documentation file stored on the history entry (CSV Direct), if any */
+    documentationPath?: string;
 }

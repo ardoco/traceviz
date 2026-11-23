@@ -11,23 +11,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onView:traceViz.approach",
-    "onView:traceViz.history",
-    "onCommand:trace-viz.openSettings",
-    "onCommand:trace-viz.browseCodeModelExtractorJar",
-    "onCommand:trace-viz.csvDirect",
-    "onCommand:trace-viz.refreshHistory",
-    "onCommand:trace-viz.openArDoCoWebview",
-    "onCommand:trace-viz.ardoCoConfigureQuick",
-    "onCommand:trace-viz.ardoCoSelectCodeModel",
-    "onCommand:trace-viz.openLissaWebview",
-    "onCommand:trace-viz.ardoCoGenerateModel",
-    "onCommand:trace-viz.ardoCoGenerateLinks",
-    "onCommand:trace-viz.sadCode",
-    "onCommand:trace-viz.samCode",
-    "onCommand:trace-viz.sadSam",
-    "onCommand:trace-viz.sadSamCode",
-    "onCommand:trace-viz.compressHistoryCsv"
+    "workspaceContains:.trace-viz/history.json",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "browser": "./dist/web/extension.js",

@@ -19,8 +19,10 @@ const TOGGLE_UNLINKED_COMMAND = 'trace-viz.toggleUnlinkedSentences';
 const UNLINKED_CONTEXT_KEY = 'traceViz.unlinkedSentencesVisible';
 /** Overview ruler lanes of the first and second active set */
 const SET_LANES = [vscode.OverviewRulerLane.Left, vscode.OverviewRulerLane.Center];
-/** Maximum number of code paths listed per section of a hover */
-const HOVER_MAX_FILES = 5;
+/** Maximum number of code paths listed per section (set or comparison category) of a hover */
+const HOVER_MAX_FILES = 4;
+/** Maximum number of code paths listed in a whole hover; the rest is reachable via "+K more…" (Quick Pick) */
+const HOVER_MAX_TOTAL = 8;
 
 /** Collapses whitespace and truncates text to the given length */
 function truncate(text: string, max: number): string {
@@ -35,6 +37,27 @@ function escapeMd(text: string): string {
 
 function plural(count: number, word: string): string {
     return `${count} ${word}${count === 1 ? '' : 's'}`;
+}
+
+/**
+ * Counts code links in their own unit. A link to a folder is one link that stands for all files below
+ * it (directory heuristic), so it is counted as a folder, not as a file: "1 folder", "5 files", "2 files, 1 folder".
+ * Every count shown for a set or a comparison category (CodeLens, hover, comparison summary) uses this rule,
+ * so the numbers add up to the entries listed in the hover and the Quick Pick. A comparison category lists
+ * links of one set: "in both" and "only <approach>" list the approach's links, "only <gold standard>" the gold links.
+ * @param codeIDs Code paths of the links (duplicates are counted once)
+ */
+function describeLinks(codeIDs: Iterable<string>): string {
+    let files = 0;
+    let folders = 0;
+    for (const codeID of new Set(codeIDs)) {
+        if (PathResolverService.resolvePathType(codeID).isDir) {
+            folders++;
+        } else {
+            files++;
+        }
+    }
+    return [files > 0 ? plural(files, 'file') : '', folders > 0 ? plural(folders, 'folder') : ''].filter(Boolean).join(', ') || '0 files';
 }
 
 /** Command URI for Markdown links */
@@ -187,11 +210,15 @@ class LineToFileVisualization implements vscode.Disposable {
     }
 
     private reloadData(): void {
-        this.documentationPath = ConfigReaderService.readDocumentationPath();
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         this.workspaceRoot = workspaceFolder?.uri.fsPath;
 
         const activeItems = HistoryReaderService.readActiveHistoryItems();
+        // The ARDoCo configuration names the documentation file; without it (e.g. a CSV Direct import alone) use
+        // the one stored on the active history entries. Only one documentation file is decorated: if the active
+        // entries point to different files, the first entry's file wins.
+        this.documentationPath = ConfigReaderService.readDocumentationPath()
+            ?? activeItems.find(i => i.documentationPath)?.documentationPath;
         this.sets = activeItems.map(i => ({
             id: i.id,
             name: i.name,
@@ -287,7 +314,7 @@ class LineToFileVisualization implements vscode.Disposable {
             .filter(cat => line[cat].length > 0)
             .map(cat => {
                 const label = this.categoryLabel(c, cat);
-                return `${line[cat].length} ${label.charAt(0).toLowerCase()}${label.substring(1)}`;
+                return `${describeLinks(line[cat].map(l => l.codeID))} ${label.charAt(0).toLowerCase()}${label.substring(1)}`;
             })
             .join(' · ');
     }
@@ -438,25 +465,30 @@ class LineToFileVisualization implements vscode.Disposable {
             md.appendMarkdown(this.legendMarkdown() + '\n\n---\n\n');
         }
 
+        // Dense lines would make the hover taller than the editor and clip its end, so the overall
+        // evaluation comes first and the number of listed paths is capped (HOVER_MAX_FILES per section,
+        // HOVER_MAX_TOTAL overall); the remainder is behind "+K more…", which opens the Quick Pick of the line.
+        let budget = HOVER_MAX_TOTAL;
         const line = c?.lines.get(sentenceID);
         if (c && line) {
-            for (const category of CATEGORIES) {
-                if (line[category].length > 0) {
-                    md.appendMarkdown(`${dotMarkdown(this.categoryColors(c, category))} **${escapeMd(this.categoryLabel(c, category))}** · ${line[category].length}  \n`);
-                    this.appendFileList(md, line[category].map(l => l.codeID), displayNames, sentenceID, undefined);
-                }
-            }
             const evaluation = this.evaluationSummary(c);
             if (evaluation) {
-                md.appendMarkdown(`---\n\n*Overall: ${escapeMd(evaluation)}*\n`);
+                md.appendMarkdown(`*Overall: ${escapeMd(evaluation)}*\n\n---\n\n`);
+            }
+            for (const category of CATEGORIES) {
+                if (line[category].length > 0) {
+                    const files = line[category].map(l => l.codeID);
+                    md.appendMarkdown(`${dotMarkdown(this.categoryColors(c, category))} **${escapeMd(this.categoryLabel(c, category))}** · ${describeLinks(files)}  \n`);
+                    budget -= this.appendFileList(md, files, displayNames, sentenceID, undefined, budget);
+                }
             }
             return md;
         }
 
         for (const group of this.groupBySet(linksOnLine)) {
             const files = [...new Set(group.links.map(l => l.codeID))];
-            md.appendMarkdown(`${dotMarkdown(group.set.color)} **${escapeMd(group.set.name)}** · ${plural(files.length, 'linked file')}  \n`);
-            this.appendFileList(md, files, displayNames, sentenceID, group.set.id);
+            md.appendMarkdown(`${dotMarkdown(group.set.color)} **${escapeMd(group.set.name)}** · ${describeLinks(files)}  \n`);
+            budget -= this.appendFileList(md, files, displayNames, sentenceID, group.set.id, budget);
         }
         return md;
     }
@@ -478,14 +510,19 @@ class LineToFileVisualization implements vscode.Disposable {
         return names;
     }
 
-    /** Appends a compact, wrapping list of code links (at most HOVER_MAX_FILES, then a link to the Quick Pick) */
-    private appendFileList(md: vscode.MarkdownString, codeIDs: string[], displayNames: Map<string, string>, sentenceID: number, setId: string | undefined): void {
-        const shown = codeIDs.slice(0, HOVER_MAX_FILES).map(f =>
+    /**
+     * Appends a compact, wrapping list of code links (at most HOVER_MAX_FILES and at most `budget`, then a link to the Quick Pick)
+     * @returns Number of code paths listed
+     */
+    private appendFileList(md: vscode.MarkdownString, codeIDs: string[], displayNames: Map<string, string>, sentenceID: number, setId: string | undefined, budget: number): number {
+        const limit = Math.max(0, Math.min(HOVER_MAX_FILES, budget));
+        const shown = codeIDs.slice(0, limit).map(f =>
             `[$(${PathResolverService.resolvePathType(f).isDir ? 'folder' : 'file'}) ${escapeMd(displayNames.get(f) ?? f)}](${commandUri('trace-viz.viz.openCode', [f])} "${f.replace(/"/g, '')}")`);
-        if (codeIDs.length > HOVER_MAX_FILES) {
-            shown.push(`[+${codeIDs.length - HOVER_MAX_FILES} more…](${commandUri('trace-viz.viz.jumpToCodeFromLine', [setId ?? null, sentenceID])} "Show all")`);
+        if (codeIDs.length > limit) {
+            shown.push(`[+${codeIDs.length - limit} more…](${commandUri('trace-viz.viz.jumpToCodeFromLine', [setId ?? null, sentenceID])} "Show all")`);
         }
         md.appendMarkdown(shown.join(' &nbsp;·&nbsp; ') + '\n\n');
+        return Math.min(limit, codeIDs.length);
     }
 
     // ------------------------------------------------------------------------
@@ -804,8 +841,8 @@ class LineToFileVisualization implements vscode.Disposable {
         for (const group of this.groupBySet(links)) {
             const count = new Set(group.links.map(l => l.codeID)).size;
             lenses.push(new vscode.CodeLens(range, {
-                title: `$(link) ${group.set.name} · ${plural(count, 'file')}`,
-                tooltip: `Choose one of the ${plural(count, 'code location')} that ${group.set.name} links to line ${sentenceID}`,
+                title: `$(link) ${group.set.name} · ${describeLinks(group.links.map(l => l.codeID))}`,
+                tooltip: `Choose one of the ${plural(count, 'code location')} that ${group.set.name} links to line ${sentenceID}. A folder link covers all files below it.`,
                 command: 'trace-viz.viz.jumpToCodeFromLine',
                 arguments: [group.set.id]
             }));
@@ -816,7 +853,7 @@ class LineToFileVisualization implements vscode.Disposable {
         if (c && line) {
             lenses.push(new vscode.CodeLens(range, {
                 title: `$(git-compare) ${this.comparisonSummary(c, line)}`,
-                tooltip: `Compare ${c.candidate.name} with ${c.reference.name} on line ${sentenceID}`,
+                tooltip: `Compare ${c.candidate.name} with ${c.reference.name} on line ${sentenceID}. Counts are links; a folder link matches every file below it.`,
                 command: 'trace-viz.viz.jumpToCodeFromLine',
                 arguments: []
             }));
