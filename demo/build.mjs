@@ -120,13 +120,19 @@ async function buildDemoWorkspace() {
 	});
 	cpSync(join(mediastore, 'README.md'), join(workspace, 'README.md'));
 
-	// SAD and gold standard from the ARDoCo benchmark (MIT)
-	const sad = await download(`${BENCHMARK_URL}/text_2016/mediastore.txt`, join(cacheDir, `benchmark-${BENCHMARK_COMMIT}`, 'mediastore.txt'));
-	const goldStandard = await download(`${BENCHMARK_URL}/goldstandards/goldstandard_sad_2016-code_2016.csv`, join(cacheDir, `benchmark-${BENCHMARK_COMMIT}`, 'goldstandard_sad_2016-code_2016.csv'));
-	mkdirSync(join(workspace, 'docs'), { recursive: true });
-	mkdirSync(join(workspace, 'tracelinks'), { recursive: true });
-	cpSync(sad, join(workspace, 'docs', 'mediastore.txt'));
-	cpSync(goldStandard, join(workspace, 'tracelinks', 'goldstandard_sad_2016-code_2016.csv'));
+	// SAD, gold standard, JSON code model (ACM) and PCM repository model from the ARDoCo benchmark (MIT);
+	// the models are the inputs for ArDoCode and TransArC via the ARDoCo REST API
+	const benchmarkFiles = {
+		'text_2016/mediastore.txt': 'docs/mediastore.txt',
+		'goldstandards/goldstandard_sad_2016-code_2016.csv': 'tracelinks/goldstandard_sad_2016-code_2016.csv',
+		'model_2016/code/codeModel.acm': 'models/codeModel.acm',
+		'model_2016/pcm/ms.repository': 'models/ms.repository',
+	};
+	for (const [source, path] of Object.entries(benchmarkFiles)) {
+		const file = await download(`${BENCHMARK_URL}/${source}`, join(cacheDir, `benchmark-${BENCHMARK_COMMIT}`, ...source.split('/')));
+		mkdirSync(dirname(join(workspace, path)), { recursive: true });
+		cpSync(file, join(workspace, ...path.split('/')));
+	}
 
 	// Demo files (README, precomputed ArDoCode links, preloaded trace history)
 	cpSync(join(demoDir, 'workspace'), workspace, { recursive: true });

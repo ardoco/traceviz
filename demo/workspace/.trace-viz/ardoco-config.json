@@ -1,3 +1,8 @@
 {
-  "documentationPath": "/mediastore/docs/mediastore.txt"
+  "restApiUrl": "https://rest.ardoco.de",
+  "projectName": "mediastore",
+  "documentationPath": "/mediastore/docs/mediastore.txt",
+  "codeModelPath": "/mediastore/models/codeModel.acm",
+  "architectureModelPath": "/mediastore/models/ms.repository",
+  "architectureModelFormat": "PCM"
 }
