@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import { getTraceHistory } from '../traceabilityApproach/csv/csvDirect';
 import { VizColor, TraceHistoryEntry } from '../types';
 import { DecorationService } from '../services/decoration.service';
@@ -66,34 +67,68 @@ export class TraceHistoryViewProvider implements vscode.TreeDataProvider<History
         return Promise.resolve([]);
     }
 
+    /** Stats per csvPath, valid while the file and the comparison context are unchanged */
+    private readonly statsCache = new Map<string, { fileSignature: string; context: string; stats: HistoryItemStats | undefined }>();
+
+    /** Identifies the content state of a file (mtime and size), or undefined if it cannot be read */
+    private static fileSignature(csvPath: string): string | undefined {
+        try {
+            const stat = fs.statSync(csvPath);
+            return `${stat.mtimeMs}:${stat.size}`;
+        } catch {
+            return undefined;
+        }
+    }
+
     /**
      * Computes the size of every completed set and, if exactly one active set is a gold standard,
-     * the precision, recall and F1 of every other set against it
+     * the precision, recall and F1 of every other set against it. Results are cached per CSV file; an
+     * entry is recomputed when its file changes or when the gold standard (or workspace) changes.
      */
     private computeStats(history: TraceHistoryEntry[], workspaceRoot: string): Map<string, HistoryItemStats> {
         const stats = new Map<string, HistoryItemStats>();
-        const rows = new Map(history
-            .filter(e => e.csvPath && e.status !== 'loading' && e.status !== 'error')
-            .map(e => [e.id, CsvReaderService.readCsv(e.csvPath)]));
+        const completed = history.filter(e => e.csvPath && e.status !== 'loading' && e.status !== 'error');
+        const signatures = new Map(completed.map(e => [e.id, TraceHistoryViewProvider.fileSignature(e.csvPath)]));
 
-        const activeGold = history.filter(e => e.active && rows.has(e.id) && HistoryReaderService.isGoldStandard(e));
+        const activeGold = completed.filter(e => e.active && HistoryReaderService.isGoldStandard(e));
         const gold = activeGold.length === 1 ? activeGold[0] : undefined;
-        const goldLinks = gold ? TraceComparisonService.toComparableLinks(rows.get(gold.id)!, workspaceRoot) : undefined;
+        const goldContext = gold ? `${gold.id}|${gold.csvPath}|${signatures.get(gold.id)}` : '';
+        let goldLinks: ReturnType<typeof TraceComparisonService.toComparableLinks> | undefined;
 
-        for (const entry of history) {
-            const entryRows = rows.get(entry.id);
-            if (!entryRows || entryRows.length === 0) {
-                continue;
+        const livePaths = new Set(completed.map(e => e.csvPath));
+        for (const cached of [...this.statsCache.keys()]) {
+            if (!livePaths.has(cached)) {
+                this.statsCache.delete(cached);
             }
+        }
+
+        for (const entry of completed) {
             const isGoldStandard = HistoryReaderService.isGoldStandard(entry);
-            const item: HistoryItemStats = { summary: TraceComparisonService.summarize(entryRows, workspaceRoot), isGoldStandard };
-            if (gold && goldLinks && !isGoldStandard) {
-                item.evaluation = {
-                    goldName: HistoryReaderService.displayName(gold),
-                    metrics: TraceComparisonService.evaluate(goldLinks, TraceComparisonService.toComparableLinks(entryRows, workspaceRoot))
-                };
+            const fileSignature = signatures.get(entry.id);
+            // The gold standard only matters for sets that are evaluated against it
+            const context = `${workspaceRoot}|${isGoldStandard}|${isGoldStandard ? '' : goldContext}`;
+            let cached = fileSignature !== undefined ? this.statsCache.get(entry.csvPath) : undefined;
+            if (!cached || cached.fileSignature !== fileSignature || cached.context !== context) {
+                const entryRows = CsvReaderService.readCsv(entry.csvPath);
+                let item: HistoryItemStats | undefined;
+                if (entryRows.length > 0) {
+                    item = { summary: TraceComparisonService.summarize(entryRows, workspaceRoot), isGoldStandard };
+                    if (gold && !isGoldStandard) {
+                        goldLinks ??= TraceComparisonService.toComparableLinks(CsvReaderService.readCsv(gold.csvPath), workspaceRoot);
+                        item.evaluation = {
+                            goldName: HistoryReaderService.displayName(gold),
+                            metrics: TraceComparisonService.evaluate(goldLinks, TraceComparisonService.toComparableLinks(entryRows, workspaceRoot))
+                        };
+                    }
+                }
+                cached = { fileSignature: fileSignature ?? '', context, stats: item };
+                if (fileSignature !== undefined) {
+                    this.statsCache.set(entry.csvPath, cached);
+                }
             }
-            stats.set(entry.id, item);
+            if (cached.stats) {
+                stats.set(entry.id, cached.stats);
+            }
         }
         return stats;
     }
