@@ -23,6 +23,12 @@ create(document.body, {
 		// Start the extension host in a same-origin iframe served from this site instead of
 		// https://{{uuid}}.vscode-cdn.net (GitHub Pages cannot serve per-session subdomains)
 		webEndpointUrlTemplate: '',
+		// The demo has no marketplace and no chat: drop the product.json entries that make the workbench fetch
+		// https://main.vscode-cdn.net/extensions/marketplace.json (extensionsGallery.controlUrl) and
+		// https://main.vscode-cdn.net/extensions/chat.json (chatParticipantRegistry). Both requests are
+		// cross-origin and fail with CORS errors on other hosts than vscode.dev.
+		extensionsGallery: undefined,
+		chatParticipantRegistry: undefined,
 		// Quick Open (Ctrl+P) in the demo workspace
 		extensionEnabledApiProposals: { 'ardoco.traceviz-demo-workspace': ['fileSearchProvider'] }
 	},
