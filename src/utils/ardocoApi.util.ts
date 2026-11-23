@@ -104,6 +104,13 @@ export class ArDoCoApiUtil {
     }
 
     /**
+     * Gets the base URL of the REST API without trailing slashes
+     */
+    private static getBaseUrl(config: ArDoCoConfig): string {
+        return config.restApiUrl.replace(/\/+$/, '');
+    }
+
+    /**
      * Prepares form data for trace link generation request
      */
     private static async prepareFormData(options: StartTraceLinkRequestOptions): Promise<FormData> {
@@ -172,7 +179,7 @@ export class ArDoCoApiUtil {
         options: StartTraceLinkRequestOptions
     ): Promise<StartTraceLinkResponse> {
         const endpoint = this.getEndpointUrl(options.traceLinkType);
-        let requestUrl = `${config.restApiUrl}/api/${endpoint}/start?projectName=${encodeURIComponent(config.projectName)}`;
+        let requestUrl = `${this.getBaseUrl(config)}/api/${endpoint}/start?projectName=${encodeURIComponent(config.projectName)}`;
         if (options.architectureModelFormat) {
             requestUrl += `&inputArchitectureModelFormat=${encodeURIComponent(options.architectureModelFormat)}`;
         }
@@ -223,7 +230,7 @@ export class ArDoCoApiUtil {
 
             Logger.debug(`Polling attempt ${attempts}/${maxAttempts} for requestId: ${requestId}`);
 
-            const requestUrl = `${config.restApiUrl}/api/wait-for-result/${requestId}`;
+            const requestUrl = `${this.getBaseUrl(config)}/api/wait-for-result/${requestId}`;
             const response = await this.makeRequest(requestUrl, 'GET');
 
             if (!response.ok) {
