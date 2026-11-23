@@ -1,0 +1,32 @@
+{
+  "name": "traceviz-demo-workspace",
+  "displayName": "TraceViz Demo Workspace",
+  "description": "Serves the MediaStore demo workspace of the TraceViz web demo from static files (changes are kept in memory only).",
+  "publisher": "ardoco",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "activationEvents": [
+    "onFileSystem:tracevizdemo",
+    "onSearch:tracevizdemo"
+  ],
+  "enabledApiProposals": [
+    "fileSearchProvider"
+  ],
+  "browser": "./extension.js",
+  "contributes": {
+    "resourceLabelFormatters": [
+      {
+        "scheme": "tracevizdemo",
+        "formatting": {
+          "label": "${path}",
+          "separator": "/",
+          "workspaceSuffix": "TraceViz Demo"
+        }
+      }
+    ]
+  }
+}

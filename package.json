@@ -256,7 +256,9 @@
     "compile-web": "npm run check-types && npm run lint && node esbuild.js",
     "watch-web": "node esbuild.js --watch",
     "package-web": "npm run check-types && npm run lint && node esbuild.js --production",
-    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
+    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
+    "demo:build": "node demo/build.mjs",
+    "demo:serve": "node demo/serve.mjs"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
