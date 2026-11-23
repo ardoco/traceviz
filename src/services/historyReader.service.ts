@@ -71,7 +71,8 @@ export class HistoryReaderService {
                     csvPath: e.csvPath as string,
                     color: toVizColor(e.color),
                     name: HistoryReaderService.displayName(e),
-                    isGoldStandard: HistoryReaderService.isGoldStandard(e)
+                    isGoldStandard: HistoryReaderService.isGoldStandard(e),
+                    documentationPath: typeof e.documentationPath === 'string' && e.documentationPath ? e.documentationPath : undefined
                 }));
         } catch {
             return [];

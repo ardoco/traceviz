@@ -210,11 +210,15 @@ class LineToFileVisualization implements vscode.Disposable {
     }
 
     private reloadData(): void {
-        this.documentationPath = ConfigReaderService.readDocumentationPath();
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         this.workspaceRoot = workspaceFolder?.uri.fsPath;
 
         const activeItems = HistoryReaderService.readActiveHistoryItems();
+        // The ARDoCo configuration names the documentation file; without it (e.g. a CSV Direct import alone) use
+        // the one stored on the active history entries. Only one documentation file is decorated: if the active
+        // entries point to different files, the first entry's file wins.
+        this.documentationPath = ConfigReaderService.readDocumentationPath()
+            ?? activeItems.find(i => i.documentationPath)?.documentationPath;
         this.sets = activeItems.map(i => ({
             id: i.id,
             name: i.name,

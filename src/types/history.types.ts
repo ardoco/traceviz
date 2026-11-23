@@ -51,4 +51,6 @@ export interface ActiveHistoryItem {
     name: string;
     /** Whether this set is a gold standard (explicit flag or "gold" in its name) */
     isGoldStandard: boolean;
+    /** Path to the documentation file stored on the history entry (CSV Direct), if any */
+    documentationPath?: string;
 }
