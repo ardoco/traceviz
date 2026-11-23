@@ -19,8 +19,10 @@ const TOGGLE_UNLINKED_COMMAND = 'trace-viz.toggleUnlinkedSentences';
 const UNLINKED_CONTEXT_KEY = 'traceViz.unlinkedSentencesVisible';
 /** Overview ruler lanes of the first and second active set */
 const SET_LANES = [vscode.OverviewRulerLane.Left, vscode.OverviewRulerLane.Center];
-/** Maximum number of code paths listed per section of a hover */
-const HOVER_MAX_FILES = 5;
+/** Maximum number of code paths listed per section (set or comparison category) of a hover */
+const HOVER_MAX_FILES = 4;
+/** Maximum number of code paths listed in a whole hover; the rest is reachable via "+K more…" (Quick Pick) */
+const HOVER_MAX_TOTAL = 8;
 
 /** Collapses whitespace and truncates text to the given length */
 function truncate(text: string, max: number): string {
@@ -459,17 +461,22 @@ class LineToFileVisualization implements vscode.Disposable {
             md.appendMarkdown(this.legendMarkdown() + '\n\n---\n\n');
         }
 
+        // Dense lines would make the hover taller than the editor and clip its end, so the overall
+        // evaluation comes first and the number of listed paths is capped (HOVER_MAX_FILES per section,
+        // HOVER_MAX_TOTAL overall); the remainder is behind "+K more…", which opens the Quick Pick of the line.
+        let budget = HOVER_MAX_TOTAL;
         const line = c?.lines.get(sentenceID);
         if (c && line) {
-            for (const category of CATEGORIES) {
-                if (line[category].length > 0) {
-                    md.appendMarkdown(`${dotMarkdown(this.categoryColors(c, category))} **${escapeMd(this.categoryLabel(c, category))}** · ${describeLinks(line[category].map(l => l.codeID))}  \n`);
-                    this.appendFileList(md, line[category].map(l => l.codeID), displayNames, sentenceID, undefined);
-                }
-            }
             const evaluation = this.evaluationSummary(c);
             if (evaluation) {
-                md.appendMarkdown(`---\n\n*Overall: ${escapeMd(evaluation)}*\n`);
+                md.appendMarkdown(`*Overall: ${escapeMd(evaluation)}*\n\n---\n\n`);
+            }
+            for (const category of CATEGORIES) {
+                if (line[category].length > 0) {
+                    const files = line[category].map(l => l.codeID);
+                    md.appendMarkdown(`${dotMarkdown(this.categoryColors(c, category))} **${escapeMd(this.categoryLabel(c, category))}** · ${describeLinks(files)}  \n`);
+                    budget -= this.appendFileList(md, files, displayNames, sentenceID, undefined, budget);
+                }
             }
             return md;
         }
@@ -477,7 +484,7 @@ class LineToFileVisualization implements vscode.Disposable {
         for (const group of this.groupBySet(linksOnLine)) {
             const files = [...new Set(group.links.map(l => l.codeID))];
             md.appendMarkdown(`${dotMarkdown(group.set.color)} **${escapeMd(group.set.name)}** · ${describeLinks(files)}  \n`);
-            this.appendFileList(md, files, displayNames, sentenceID, group.set.id);
+            budget -= this.appendFileList(md, files, displayNames, sentenceID, group.set.id, budget);
         }
         return md;
     }
@@ -499,14 +506,19 @@ class LineToFileVisualization implements vscode.Disposable {
         return names;
     }
 
-    /** Appends a compact, wrapping list of code links (at most HOVER_MAX_FILES, then a link to the Quick Pick) */
-    private appendFileList(md: vscode.MarkdownString, codeIDs: string[], displayNames: Map<string, string>, sentenceID: number, setId: string | undefined): void {
-        const shown = codeIDs.slice(0, HOVER_MAX_FILES).map(f =>
+    /**
+     * Appends a compact, wrapping list of code links (at most HOVER_MAX_FILES and at most `budget`, then a link to the Quick Pick)
+     * @returns Number of code paths listed
+     */
+    private appendFileList(md: vscode.MarkdownString, codeIDs: string[], displayNames: Map<string, string>, sentenceID: number, setId: string | undefined, budget: number): number {
+        const limit = Math.max(0, Math.min(HOVER_MAX_FILES, budget));
+        const shown = codeIDs.slice(0, limit).map(f =>
             `[$(${PathResolverService.resolvePathType(f).isDir ? 'folder' : 'file'}) ${escapeMd(displayNames.get(f) ?? f)}](${commandUri('trace-viz.viz.openCode', [f])} "${f.replace(/"/g, '')}")`);
-        if (codeIDs.length > HOVER_MAX_FILES) {
-            shown.push(`[+${codeIDs.length - HOVER_MAX_FILES} more…](${commandUri('trace-viz.viz.jumpToCodeFromLine', [setId ?? null, sentenceID])} "Show all")`);
+        if (codeIDs.length > limit) {
+            shown.push(`[+${codeIDs.length - limit} more…](${commandUri('trace-viz.viz.jumpToCodeFromLine', [setId ?? null, sentenceID])} "Show all")`);
         }
         md.appendMarkdown(shown.join(' &nbsp;·&nbsp; ') + '\n\n');
+        return Math.min(limit, codeIDs.length);
     }
 
     // ------------------------------------------------------------------------
