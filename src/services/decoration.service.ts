@@ -30,7 +30,7 @@ export class DecorationService {
      */
     static createGutterDot(colorHex: string): vscode.TextEditorDecorationType {
         const svg = `<svg width="${CONSTANTS_NUMBER_SVG_WIDTH}" height="${CONSTANTS_NUMBER_SVG_HEIGHT}" viewBox="0 0 ${CONSTANTS_NUMBER_SVG_WIDTH} ${CONSTANTS_NUMBER_SVG_HEIGHT}" xmlns="${CONSTANTS_STRING_SVG_NAMESPACE}"><circle cx="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_X}" cy="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_Y}" r="${CONSTANTS_NUMBER_SVG_CIRCLE_RADIUS}" fill="${colorHex}" stroke="${colorHex}" stroke-width="${CONSTANTS_NUMBER_SVG_CIRCLE_STROKE_WIDTH}"/></svg>`;
-        const uri = vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + Buffer.from(svg).toString('base64'));
+        const uri = vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + btoa(svg));
         return vscode.window.createTextEditorDecorationType({ gutterIconPath: uri, gutterIconSize: 'contain' });
     }
 
@@ -55,7 +55,7 @@ export class DecorationService {
      */
     static createCircleIconUri(colorHex: string): vscode.Uri {
         const svg = `<svg width="${CONSTANTS_NUMBER_SVG_WIDTH}" height="${CONSTANTS_NUMBER_SVG_HEIGHT}" viewBox="0 0 ${CONSTANTS_NUMBER_SVG_WIDTH} ${CONSTANTS_NUMBER_SVG_HEIGHT}" xmlns="${CONSTANTS_STRING_SVG_NAMESPACE}"><circle cx="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_X}" cy="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_Y}" r="${CONSTANTS_NUMBER_SVG_CIRCLE_RADIUS}" fill="${colorHex}" stroke="${colorHex}" stroke-width="${CONSTANTS_NUMBER_SVG_CIRCLE_STROKE_WIDTH}"/></svg>`;
-        return vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + Buffer.from(svg).toString('base64'));
+        return vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + btoa(svg));
     }
 
     /**
@@ -76,7 +76,7 @@ export class DecorationService {
         };
 
         const svg = this.buildMultiDotSvg(norm.map(c => colorHex[c]));
-        const uri = vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + Buffer.from(svg).toString('base64'));
+        const uri = vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + btoa(svg));
         return vscode.window.createTextEditorDecorationType({ gutterIconPath: uri, gutterIconSize: 'contain' });
     }
 }

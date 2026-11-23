@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { TraceHistoryEntry } from '../types';
 import { CONSTANTS_FILE_PATH_HISTORY, CONSTANTS_FILE_PATH_ARDOCO_CONFIG } from '../constants';
 import { TraceVizStorageUtil } from '../utils/traceVizStorage.util';
+import { toUri } from '../utils/uri.util';
 
 /**
  * Registers the command to open the documentation file from trace history entry
@@ -25,7 +26,7 @@ export function registerOpenDocumentationCommand(context: vscode.ExtensionContex
         if (historyEntry?.documentationPath) {
             // Use documentation path from history entry (for CSV Direct)
             if (fs.existsSync(historyEntry.documentationPath)) {
-                vscode.commands.executeCommand('vscode.open', vscode.Uri.file(historyEntry.documentationPath));
+                vscode.commands.executeCommand('vscode.open', toUri(historyEntry.documentationPath));
                 return;
             } else {
                 vscode.window.showWarningMessage('Documentation file not found.');
@@ -42,7 +43,7 @@ export function registerOpenDocumentationCommand(context: vscode.ExtensionContex
         
         const docPath: string | undefined = config?.documentationPath;
         if (docPath && fs.existsSync(docPath)) {
-            vscode.commands.executeCommand('vscode.open', vscode.Uri.file(docPath));
+            vscode.commands.executeCommand('vscode.open', toUri(docPath));
         } else {
             vscode.window.showWarningMessage('Documentation file not found in ARDoCo config.');
         }

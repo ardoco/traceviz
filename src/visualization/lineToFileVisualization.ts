@@ -8,6 +8,7 @@ import { PathResolverService } from '../services/pathResolver.service';
 import { DecorationService } from '../services/decoration.service';
 import { FileWatcherService } from '../services/fileWatcher.service';
 import { FileToLineAggregationService } from '../services/fileToLineAggregation.service';
+import { toUri } from '../utils/uri.util';
 
 /**
  * Registers the line-to-file visualization feature
@@ -85,7 +86,7 @@ class LineToFileVisualization implements vscode.Disposable {
             onDidChangeCodeLenses: this.codeLensEmitter.event,
             provideCodeLenses: (document) => this.provideCodeLenses(document)
         };
-        this.disposables.push(vscode.languages.registerCodeLensProvider({ scheme: 'file' }, provider));
+        this.disposables.push(vscode.languages.registerCodeLensProvider({ scheme: vscode.workspace.workspaceFolders?.[0]?.uri.scheme ?? 'file' }, provider));
 
         // Set up file watchers
         const watchers = FileWatcherService.createTraceVizWatchers(() => this.reloadData());
@@ -402,7 +403,7 @@ class LineToFileVisualization implements vscode.Disposable {
         }
         
         try {
-            const docUri = vscode.Uri.file(this.documentationPath);
+            const docUri = toUri(this.documentationPath);
             const doc = await vscode.workspace.openTextDocument(docUri);
             const editor = await vscode.window.showTextDocument(doc);
             

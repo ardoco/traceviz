@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import {
     CONSTANTS_FILE_PATH_STORAGE_DIR,
     CONSTANTS_FILE_PATH_HISTORY,
@@ -22,13 +21,11 @@ export class FileWatcherService {
             return disposables;
         }
 
-        const traceVizDir = path.join(ws.uri.fsPath, CONSTANTS_FILE_PATH_STORAGE_DIR);
-        const historyFile = path.join(traceVizDir, CONSTANTS_FILE_PATH_HISTORY);
-        const configFile = path.join(traceVizDir, CONSTANTS_FILE_PATH_ARDOCO_CONFIG);
+        const traceVizDir = vscode.Uri.joinPath(ws.uri, CONSTANTS_FILE_PATH_STORAGE_DIR);
 
-        const addWatcher = (filePath: string) => {
+        const addWatcher = (fileName: string) => {
             const watcher = vscode.workspace.createFileSystemWatcher(
-                new vscode.RelativePattern(path.dirname(filePath), path.basename(filePath))
+                new vscode.RelativePattern(traceVizDir, fileName)
             );
             watcher.onDidChange(() => onChange());
             watcher.onDidCreate(() => onChange());
@@ -36,8 +33,8 @@ export class FileWatcherService {
             disposables.push(watcher);
         };
 
-        addWatcher(historyFile);
-        addWatcher(configFile);
+        addWatcher(CONSTANTS_FILE_PATH_HISTORY);
+        addWatcher(CONSTANTS_FILE_PATH_ARDOCO_CONFIG);
 
         return disposables;
     }

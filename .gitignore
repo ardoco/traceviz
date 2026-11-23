@@ -2,6 +2,8 @@ out
 dist
 node_modules
 .vscode-test/
+.vscode-test-web/
+demo/.cache/
 *.vsix
 
 # macOS system files

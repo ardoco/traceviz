@@ -13,7 +13,11 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
     readonly onDidChangeTreeData: vscode.Event<ApproachItem | undefined | null | void> = this.onDidChangeTreeDataEmitter.event;
     private readonly disposables: vscode.Disposable[] = [];
 
-    constructor() {
+    /**
+     * @param nodeFeatures Whether approaches that need Node.js (ARDoCo, LiSSA) are available;
+     *                     false in VS Code for the Web, where they are shown as unavailable
+     */
+    constructor(private readonly nodeFeatures: boolean = true) {
         // Listen for workspace changes to refresh the view
         this.disposables.push(
             vscode.workspace.onDidChangeWorkspaceFolders(() => {
@@ -43,6 +47,13 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
     }
 
     getChildren(element?: ApproachItem): Thenable<ApproachItem[]> {
+        if (!element && !this.nodeFeatures) {
+            return Promise.resolve([
+                new ApproachItem('CSV Direct', vscode.TreeItemCollapsibleState.None),
+                ApproachItem.desktopOnly('ARDoCo'),
+                ApproachItem.desktopOnly('LiSSA')
+            ]);
+        }
         if (!element) {
             return Promise.resolve([
                 new ApproachItem('CSV Direct', vscode.TreeItemCollapsibleState.None),
@@ -91,6 +102,18 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
  * Tree item representing a traceability approach or configuration step
  */
 export class ApproachItem extends vscode.TreeItem {
+    /**
+     * Creates an item for an approach that needs the desktop (Node.js) version of the extension
+     * @param label Name of the approach
+     * @returns A disabled tree item explaining why the approach is unavailable
+     */
+    static desktopOnly(label: string): ApproachItem {
+        const item = new ApproachItem(label, vscode.TreeItemCollapsibleState.None, undefined, undefined, false, false, true);
+        item.description = 'desktop only';
+        item.tooltip = `${label} needs local tools or network access that are not available in VS Code for the Web.`;
+        return item;
+    }
+
     constructor(
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getTraceHistory } from '../traceabilityApproach/csv/csvDirect';
+import { toUri } from '../utils/uri.util';
 import { VizColor, TraceHistoryEntry } from '../types';
 import { DecorationService } from '../services/decoration.service';
 import {
@@ -103,7 +104,7 @@ export class HistoryItem extends vscode.TreeItem {
             arguments: [this.historyId]
         };
 
-        this.resourceUri = this.csvPath ? vscode.Uri.file(this.csvPath) : undefined;
+        this.resourceUri = this.csvPath ? toUri(this.csvPath) : undefined;
         const baseContext = this.active ? 'traceViz.historyItem-active' : 'traceViz.historyItem-inactive';
         if (this.label) {
             const lbl = this.label.toLowerCase();
@@ -131,7 +132,7 @@ export class HistoryItem extends vscode.TreeItem {
         // Pass the item itself to commands so handlers can read historyId
         (this as any).historyId = this.historyId;
         // Ensure resourceUri is set so commands can resolve csvPath directly
-        this.resourceUri = this.csvPath ? vscode.Uri.file(this.csvPath) : undefined;
+        this.resourceUri = this.csvPath ? toUri(this.csvPath) : undefined;
     }
 }
 

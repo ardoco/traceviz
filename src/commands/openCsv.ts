@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { readHistory } from '../services/historyService';
+import { toUri } from '../utils/uri.util';
 
 /**
  * Registers the command to open CSV files from trace history
@@ -25,7 +26,7 @@ export function registerOpenCsvCommand(context: vscode.ExtensionContext): void {
             return;
         }
 
-        vscode.commands.executeCommand('vscode.open', vscode.Uri.file(csvPath));
+        vscode.commands.executeCommand('vscode.open', toUri(csvPath));
     }));
 }
 
