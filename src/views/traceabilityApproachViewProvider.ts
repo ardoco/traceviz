@@ -16,7 +16,7 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
     private readonly disposables: vscode.Disposable[] = [];
 
     /**
-     * @param nodeFeatures Whether approaches that need Node.js (ARDoCo, LiSSA) are available;
+     * @param nodeFeatures Whether features that need Node.js (LiSSA, ARDoCo code model extraction) are available;
      *                     false in VS Code for the Web, where they are shown as unavailable
      */
     constructor(private readonly nodeFeatures: boolean = true) {
@@ -49,18 +49,11 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
     }
 
     getChildren(element?: ApproachItem): Thenable<ApproachItem[]> {
-        if (!element && !this.nodeFeatures) {
-            return Promise.resolve([
-                new ApproachItem('CSV Direct', vscode.TreeItemCollapsibleState.None),
-                ApproachItem.desktopOnly('ARDoCo'),
-                ApproachItem.desktopOnly('LiSSA')
-            ]);
-        }
         if (!element) {
             return Promise.resolve([
                 new ApproachItem('CSV Direct', vscode.TreeItemCollapsibleState.None),
                 new ApproachItem('ARDoCo', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoItem'),
-                new ApproachItem('LiSSA', vscode.TreeItemCollapsibleState.None)
+                this.nodeFeatures ? new ApproachItem('LiSSA', vscode.TreeItemCollapsibleState.None) : ApproachItem.desktopOnly('LiSSA')
             ]);
         }
         if (element.label === 'ARDoCo') {
@@ -74,7 +67,9 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
             return Promise.resolve([
                 new ApproachItem('ARDoCo Config', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoConfig', hasConfig),
                 selectCodeModel,
-                new ApproachItem('Generate Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoGenerateModel', hasCodeModel, hasConfig, hasConfig && !hasCodeModel),
+                this.nodeFeatures
+                    ? new ApproachItem('Generate Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoGenerateModel', hasCodeModel, hasConfig, hasConfig && !hasCodeModel)
+                    : ApproachItem.desktopOnly('Generate Code Model'),
                 new ApproachItem('Generate Trace Links', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoGenerateLinks', undefined, undefined, traceLinksPrerequisitesMet)
             ]);
         }

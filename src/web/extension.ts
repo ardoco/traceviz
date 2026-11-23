@@ -6,20 +6,14 @@ import { preloadWorkspace, whenSettled } from './fs';
 import { FileWatcherService } from '../services/fileWatcher.service';
 import {
     CONSTANTS_COMMAND_BROWSE_JAR,
-    CONSTANTS_COMMAND_OPEN_ARDOCO_WEBVIEW,
-    CONSTANTS_COMMAND_ARDOCO_GENERATE_MODEL,
-    CONSTANTS_COMMAND_SAD_CODE,
-    CONSTANTS_COMMAND_SAD_SAM_CODE
+    CONSTANTS_COMMAND_ARDOCO_GENERATE_MODEL
 } from '../constants';
 
-/** Commands of the desktop extension that need Node.js (local JARs, child processes, ARDoCo REST API) */
+/** Commands of the desktop extension that need Node.js (local JARs, child processes) */
 const DESKTOP_ONLY_COMMANDS = [
     CONSTANTS_COMMAND_BROWSE_JAR,
-    CONSTANTS_COMMAND_OPEN_ARDOCO_WEBVIEW,
     'trace-viz.openLissaWebview',
-    CONSTANTS_COMMAND_ARDOCO_GENERATE_MODEL,
-    CONSTANTS_COMMAND_SAD_CODE,
-    CONSTANTS_COMMAND_SAD_SAM_CODE
+    CONSTANTS_COMMAND_ARDOCO_GENERATE_MODEL
 ];
 
 /**
@@ -36,7 +30,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     for (const command of DESKTOP_ONLY_COMMANDS) {
         context.subscriptions.push(vscode.commands.registerCommand(command, () => {
-            vscode.window.showInformationMessage('This feature needs the desktop version of TraceViz (local tools or the ARDoCo REST API). In VS Code for the Web, import trace links with CSV Direct.');
+            vscode.window.showInformationMessage('This feature needs the desktop version of TraceViz (local Java tools). In VS Code for the Web, select an existing JSON code model for ARDoCo or import trace links with CSV Direct.');
         }));
     }
 }
