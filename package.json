@@ -215,18 +215,21 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "25.x",
-    "@types/vscode": "^1.134.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.3",
-    "@typescript-eslint/parser": "^8.67.0",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.100.0",
     "@vscode/test-cli": "^0.0.15",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^10.3.0",
-    "typescript": "^5.8.2"
+    "@vscode/test-electron": "^3.0.0",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
   },
   "dependencies": {
     "@types/node-fetch": "^2.6.13",
     "form-data": "^4.0.5",
     "node-fetch": "^3.3.2"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
   }
 }
