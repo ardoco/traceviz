@@ -19,7 +19,13 @@ export class HistoryReaderService {
         if (typeof e.label === 'string' && e.label.trim()) {
             return e.label.trim();
         }
-        const parts = [e.approach, e.originalName].filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+        const approach = typeof e.approach === 'string' ? e.approach.trim() : '';
+        const originalName = typeof e.originalName === 'string' ? e.originalName.trim() : '';
+        // REST results are named "<approach> Trace Links"; avoid repeating the approach
+        if (approach && originalName.toLowerCase().startsWith(approach.toLowerCase())) {
+            return approach;
+        }
+        const parts = [approach, originalName].filter(p => p.length > 0);
         return parts.length > 0 ? parts.join(' · ') : String(e.id ?? 'Trace links');
     }
 
