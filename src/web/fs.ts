@@ -27,6 +27,10 @@ interface Entry {
 
 const entries = new Map<string, Entry>();
 const pendingWrites = new Map<string, number>();
+/** Incremented on every local write of a path, so that late re-reads of older content can be dropped */
+const writeGenerations = new Map<string, number>();
+/** Mirror refreshes that are still running */
+const inFlightRefreshes = new Set<Promise<void>>();
 let writeQueue: Promise<void> = Promise.resolve();
 
 const encoder = new TextEncoder();
@@ -70,6 +74,7 @@ function enqueueWrite(p: string, operation: (uri: vscode.Uri) => Thenable<void>)
         return;
     }
     const k = key(p);
+    writeGenerations.set(k, (writeGenerations.get(k) ?? 0) + 1);
     pendingWrites.set(k, (pendingWrites.get(k) ?? 0) + 1);
     writeQueue = writeQueue
         .then(() => operation(uri))
@@ -97,10 +102,15 @@ function ensureParents(k: string): void {
 }
 
 async function mirrorFile(k: string, uri: vscode.Uri, stat: vscode.FileStat): Promise<void> {
+    const generation = writeGenerations.get(k) ?? 0;
     const entry: Entry = { isDir: false, size: stat.size, mtime: stat.mtime };
     if (shouldPreloadContent(k, stat.size)) {
         entry.data = await vscode.workspace.fs.readFile(uri);
         entry.size = entry.data.byteLength;
+    }
+    // A local write since we started reading (or one that is still being written through) is newer
+    if ((writeGenerations.get(k) ?? 0) !== generation || pendingWrites.has(k)) {
+        return;
     }
     entries.set(k, entry);
 }
@@ -126,7 +136,26 @@ async function mirrorDirectory(dirKey: string, uri: vscode.Uri): Promise<void> {
     }));
 }
 
-async function refreshFromWorkspace(uri: vscode.Uri): Promise<void> {
+function refreshFromWorkspace(uri: vscode.Uri): Promise<void> {
+    const refresh = doRefreshFromWorkspace(uri);
+    inFlightRefreshes.add(refresh);
+    void refresh.finally(() => inFlightRefreshes.delete(refresh));
+    return refresh;
+}
+
+/**
+ * Resolves once the mirror has caught up with the file system events received so far.
+ * Reloads triggered by file system watchers must wait for it, otherwise they read stale content.
+ */
+export async function whenSettled(): Promise<void> {
+    // Let all watcher listeners of the current event batch run, so that their refreshes have started
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    while (inFlightRefreshes.size > 0) {
+        await Promise.all([...inFlightRefreshes]);
+    }
+}
+
+async function doRefreshFromWorkspace(uri: vscode.Uri): Promise<void> {
     const k = key(uri.fsPath);
     if (pendingWrites.has(k)) {
         return; // our own write-through; the mirror is already up to date
@@ -214,6 +243,7 @@ export function writeFileSync(p: string, content: string | Uint8Array): void {
     }
     const data = typeof content === 'string' ? encoder.encode(content) : content;
     ensureParents(k);
+    writeGenerations.set(k, (writeGenerations.get(k) ?? 0) + 1);
     entries.set(k, { isDir: false, size: data.byteLength, mtime: Date.now(), data });
     enqueueWrite(k, uri => vscode.workspace.fs.writeFile(uri, data));
 }

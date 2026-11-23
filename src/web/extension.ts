@@ -2,7 +2,8 @@
 // Bundled by esbuild.js, which replaces the Node.js modules `fs` and `path` with ./fs and ./path.
 import * as vscode from 'vscode';
 import { registerCommonFeatures } from '../extensionCommon';
-import { preloadWorkspace } from './fs';
+import { preloadWorkspace, whenSettled } from './fs';
+import { FileWatcherService } from '../services/fileWatcher.service';
 import {
     CONSTANTS_COMMAND_BROWSE_JAR,
     CONSTANTS_COMMAND_OPEN_ARDOCO_WEBVIEW,
@@ -28,6 +29,8 @@ const DESKTOP_ONLY_COMMANDS = [
 export async function activate(context: vscode.ExtensionContext) {
     // The shared code reads the workspace synchronously, so mirror it first
     await preloadWorkspace(context);
+    // Reload only after the mirror has picked up a change
+    FileWatcherService.whenReady = whenSettled;
 
     registerCommonFeatures(context, { nodeFeatures: false });
 
