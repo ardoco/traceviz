@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { toUri } from '../utils/uri.util';
 
 /**
  * Service for resolving and opening code paths
@@ -47,9 +48,9 @@ export class PathResolverService {
             if (fs.existsSync(abs)) {
                 const stat = fs.statSync(abs);
                 if (stat.isDirectory()) {
-                    await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(abs));
+                    await vscode.commands.executeCommand('revealInExplorer', toUri(abs));
                 } else {
-                    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(abs));
+                    const doc = await vscode.workspace.openTextDocument(toUri(abs));
                     await vscode.window.showTextDocument(doc);
                 }
                 return;

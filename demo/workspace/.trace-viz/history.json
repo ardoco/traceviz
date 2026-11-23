@@ -1,0 +1,27 @@
+[
+  {
+    "id": "demo-goldstandard",
+    "timestamp": "2026-01-15T10:00:00.000Z",
+    "approach": "CSV Direct",
+    "csvPath": "/mediastore/.trace-viz/goldstandard_sad_2016-code_2016.csv",
+    "originalName": "goldstandard_sad_2016-code_2016.csv",
+    "documentationPath": "/mediastore/docs/mediastore.txt",
+    "status": "completed",
+    "active": true,
+    "color": "blue",
+    "label": "Gold standard (ARDoCo Benchmark)",
+    "isGoldStandard": true
+  },
+  {
+    "id": "demo-ardocode",
+    "timestamp": "2026-01-15T10:01:00.000Z",
+    "approach": "CSV Direct",
+    "csvPath": "/mediastore/.trace-viz/ardocode_mediastore.csv",
+    "originalName": "ardocode_mediastore.csv",
+    "documentationPath": "/mediastore/docs/mediastore.txt",
+    "status": "completed",
+    "active": true,
+    "color": "red",
+    "label": "ArDoCode (precomputed)"
+  }
+]

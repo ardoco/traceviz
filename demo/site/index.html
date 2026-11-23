@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>TraceViz Demo</title>
+		<meta name="description" content="TraceViz: SAD-to-code trace links in VS Code for the Web, shown on the MediaStore case study." />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+		<link rel="icon" href="vscode/favicon.ico" type="image/x-icon" />
+		<!-- All URLs are relative, so the site works under any base path (e.g. /traceviz/ on GitHub Pages) -->
+		<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="vscode/out/vs/workbench/workbench.web.main.internal.css" />
+		<style id="vscode-css-modules" type="text/css" media="screen"></style>
+	</head>
+
+	<body aria-label="">
+	</body>
+
+	<!-- Startup (do not modify order of script tags!) -->
+	<script>
+		globalThis._VSCODE_FILE_ROOT = new URL('vscode/out/', document.baseURI).toString();
+	</script>
+	<script src="vscode/out/nls.messages.js"></script>
+	<script type="module" src="main.js"></script>
+</html>

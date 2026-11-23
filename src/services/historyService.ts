@@ -5,6 +5,7 @@ import {
     CONSTANTS_NUMBER_MAX_ACTIVE_VISUALIZATIONS,
     CONSTANTS_NUMBER_JSON_INDENT
 } from '../constants';
+import { VIZ_COLORS, toVizColor } from '../visualization/palette';
 import { TraceVizStorageUtil } from '../utils/traceVizStorage.util';
 
 /**
@@ -37,7 +38,10 @@ export function showVisualization(historyId: string): void {
         return;
     }
     history[idx].active = true;
-    if (!history[idx].color) {history[idx].color = 'blue';}
+    // Pick a palette color that no other active set uses, so the sets stay distinguishable
+    const used = new Set(history.filter(e => e.active === true && e !== history[idx]).map(e => toVizColor(e.color)));
+    const current = toVizColor(history[idx].color);
+    history[idx].color = used.has(current) ? (VIZ_COLORS.find(c => !used.has(c)) ?? current) : current;
     writeHistory(history);
 }
 

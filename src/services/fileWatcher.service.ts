@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import {
     CONSTANTS_FILE_PATH_STORAGE_DIR,
     CONSTANTS_FILE_PATH_HISTORY,
@@ -10,6 +9,12 @@ import {
  * Service for setting up file system watchers
  */
 export class FileWatcherService {
+    /**
+     * Optional hook that resolves when the data behind a change event is ready to be read.
+     * The web build sets it, because its in-memory file mirror is refreshed asynchronously.
+     */
+    static whenReady: (() => Promise<void>) | undefined;
+
     /**
      * Creates file system watchers for trace-viz files and registers them
      * @param onChange Callback to invoke when files change
@@ -22,22 +27,29 @@ export class FileWatcherService {
             return disposables;
         }
 
-        const traceVizDir = path.join(ws.uri.fsPath, CONSTANTS_FILE_PATH_STORAGE_DIR);
-        const historyFile = path.join(traceVizDir, CONSTANTS_FILE_PATH_HISTORY);
-        const configFile = path.join(traceVizDir, CONSTANTS_FILE_PATH_ARDOCO_CONFIG);
+        const traceVizDir = vscode.Uri.joinPath(ws.uri, CONSTANTS_FILE_PATH_STORAGE_DIR);
 
-        const addWatcher = (filePath: string) => {
+        const notify = () => {
+            const ready = FileWatcherService.whenReady;
+            if (ready) {
+                void ready().then(onChange);
+            } else {
+                onChange();
+            }
+        };
+
+        const addWatcher = (fileName: string) => {
             const watcher = vscode.workspace.createFileSystemWatcher(
-                new vscode.RelativePattern(path.dirname(filePath), path.basename(filePath))
+                new vscode.RelativePattern(traceVizDir, fileName)
             );
-            watcher.onDidChange(() => onChange());
-            watcher.onDidCreate(() => onChange());
-            watcher.onDidDelete(() => onChange());
+            watcher.onDidChange(notify);
+            watcher.onDidCreate(notify);
+            watcher.onDidDelete(notify);
             disposables.push(watcher);
         };
 
-        addWatcher(historyFile);
-        addWatcher(configFile);
+        addWatcher(CONSTANTS_FILE_PATH_HISTORY);
+        addWatcher(CONSTANTS_FILE_PATH_ARDOCO_CONFIG);
 
         return disposables;
     }
