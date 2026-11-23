@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ActiveHistoryItem, VizColor } from '../types';
+import { ActiveHistoryItem } from '../types';
+import { toVizColor } from '../visualization/palette';
 import {
     CONSTANTS_FILE_PATH_STORAGE_DIR,
     CONSTANTS_FILE_PATH_HISTORY
@@ -62,7 +63,7 @@ export class HistoryReaderService {
                 .map(e => ({
                     id: e.id as string,
                     csvPath: e.csvPath as string,
-                    color: (e.color || 'blue') as VizColor,
+                    color: toVizColor(e.color),
                     name: HistoryReaderService.displayName(e),
                     isGoldStandard: HistoryReaderService.isGoldStandard(e)
                 }));
