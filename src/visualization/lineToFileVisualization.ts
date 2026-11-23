@@ -86,8 +86,8 @@ export function registerLineToFileVisualization(context: vscode.ExtensionContext
  * Also supports reverse navigation: shows status bar items in code files linking back to documentation lines.
  */
 class LineToFileVisualization implements vscode.Disposable {
-    private statusBarItemsByColor: Map<VizColor, vscode.StatusBarItem> = new Map();
-    private fileToLineStatusBarItemsByColor: Map<VizColor, vscode.StatusBarItem> = new Map();
+    private statusBarItemsBySet: Map<string, vscode.StatusBarItem> = new Map();
+    private fileToLineStatusBarItemsBySet: Map<string, vscode.StatusBarItem> = new Map();
     private compositeDecorations = new Map<string, vscode.TextEditorDecorationType>();
     private overviewDecorations = new Map<string, vscode.TextEditorDecorationType>();
     private unlinkedDecoration = DecorationService.createUnlinkedLineDecoration();
@@ -102,28 +102,35 @@ class LineToFileVisualization implements vscode.Disposable {
     private workspaceRoot: string | undefined;
     private codeLensEmitter = new vscode.EventEmitter<void>();
 
-    constructor() {
-        // Prepare per-color status bar items for documentation (higher priority -> left)
-        const docPriorities: Record<VizColor, number> = { blue: 99, red: 98, orange: 97, green: 96 };
-        VIZ_COLORS.forEach(color => {
-            const item = vscode.window.createStatusBarItem(`traceViz.doc.${color}`, vscode.StatusBarAlignment.Right, docPriorities[color]);
-            item.name = 'TraceViz: linked code';
-            this.statusBarItemsByColor.set(color, item);
-        });
+    /** Status bar item of a set (created on demand, one per set id; earlier sets are placed further left) */
+    private statusBarItemFor(items: Map<string, vscode.StatusBarItem>, kind: 'doc' | 'code', set: TraceSet): vscode.StatusBarItem {
+        let item = items.get(set.id);
+        if (!item) {
+            const index = Math.max(0, this.sets.findIndex(s => s.id === set.id));
+            const base = kind === 'doc' ? 99 : 89;
+            item = vscode.window.createStatusBarItem(`traceViz.${kind}.${set.id}`, vscode.StatusBarAlignment.Right, base - index);
+            item.name = kind === 'doc' ? 'TraceViz: linked code' : 'TraceViz: linked documentation';
+            items.set(set.id, item);
+        }
+        return item;
+    }
 
-        // Prepare per-color status bar items for code files (lower priority, different range)
-        const filePriorities: Record<VizColor, number> = { blue: 89, red: 88, orange: 87, green: 86 };
-        VIZ_COLORS.forEach(color => {
-            const item = vscode.window.createStatusBarItem(`traceViz.code.${color}`, vscode.StatusBarAlignment.Right, filePriorities[color]);
-            item.name = 'TraceViz: linked documentation';
-            this.fileToLineStatusBarItemsByColor.set(color, item);
-        });
+    /** Disposes the status bar items of sets that are no longer active */
+    private pruneStatusBarItems(): void {
+        for (const items of [this.statusBarItemsBySet, this.fileToLineStatusBarItemsBySet]) {
+            for (const [id, item] of [...items]) {
+                if (!this.sets.some(s => s.id === id)) {
+                    item.dispose();
+                    items.delete(id);
+                }
+            }
+        }
     }
 
     public initialize(): void {
         this.disposables.push(
-            vscode.commands.registerCommand('trace-viz.viz.jumpToCodeFromLine', (color?: VizColor) => this.onJumpToCode(color)),
-            vscode.commands.registerCommand('trace-viz.viz.jumpToLineFromFile', (color?: VizColor) => this.onJumpToLine(color)),
+            vscode.commands.registerCommand('trace-viz.viz.jumpToCodeFromLine', (setId?: string, sentenceID?: number) => this.onJumpToCode(setId, sentenceID)),
+            vscode.commands.registerCommand('trace-viz.viz.jumpToLineFromFile', (setId?: string) => this.onJumpToLine(setId)),
             vscode.commands.registerCommand('trace-viz.viz.openCode', (codeID: string) => PathResolverService.openCodePath(codeID)),
             vscode.commands.registerCommand(TOGGLE_UNLINKED_COMMAND, () => this.toggleUnlinkedSentences())
         );
@@ -160,10 +167,10 @@ class LineToFileVisualization implements vscode.Disposable {
     }
 
     public dispose(): void {
-        for (const item of this.statusBarItemsByColor.values()) {
+        for (const item of this.statusBarItemsBySet.values()) {
             item.dispose();
         }
-        for (const item of this.fileToLineStatusBarItemsByColor.values()) {
+        for (const item of this.fileToLineStatusBarItemsBySet.values()) {
             item.dispose();
         }
         this.compositeDecorations.forEach(d => d.dispose());
@@ -177,11 +184,6 @@ class LineToFileVisualization implements vscode.Disposable {
     private setById(id: string, color?: VizColor): TraceSet {
         const name = color ? `${color} set` : id;
         return this.sets.find(s => s.id === id) ?? { id, name, shortName: name, color: color ?? 'blue', isGoldStandard: false };
-    }
-
-    /** First active set using the given color */
-    private setForColor(color: VizColor): TraceSet | undefined {
-        return this.sets.find(s => s.color === color);
     }
 
     private reloadData(): void {
@@ -441,7 +443,7 @@ class LineToFileVisualization implements vscode.Disposable {
             for (const category of CATEGORIES) {
                 if (line[category].length > 0) {
                     md.appendMarkdown(`${dotMarkdown(this.categoryColors(c, category))} **${escapeMd(this.categoryLabel(c, category))}** · ${line[category].length}  \n`);
-                    this.appendFileList(md, line[category].map(l => l.codeID), displayNames, undefined);
+                    this.appendFileList(md, line[category].map(l => l.codeID), displayNames, sentenceID, undefined);
                 }
             }
             const evaluation = this.evaluationSummary(c);
@@ -454,7 +456,7 @@ class LineToFileVisualization implements vscode.Disposable {
         for (const group of this.groupBySet(linksOnLine)) {
             const files = [...new Set(group.links.map(l => l.codeID))];
             md.appendMarkdown(`${dotMarkdown(group.set.color)} **${escapeMd(group.set.name)}** · ${plural(files.length, 'linked file')}  \n`);
-            this.appendFileList(md, files, displayNames, group.set.color);
+            this.appendFileList(md, files, displayNames, sentenceID, group.set.id);
         }
         return md;
     }
@@ -477,11 +479,11 @@ class LineToFileVisualization implements vscode.Disposable {
     }
 
     /** Appends a compact, wrapping list of code links (at most HOVER_MAX_FILES, then a link to the Quick Pick) */
-    private appendFileList(md: vscode.MarkdownString, codeIDs: string[], displayNames: Map<string, string>, color: VizColor | undefined): void {
+    private appendFileList(md: vscode.MarkdownString, codeIDs: string[], displayNames: Map<string, string>, sentenceID: number, setId: string | undefined): void {
         const shown = codeIDs.slice(0, HOVER_MAX_FILES).map(f =>
             `[$(${PathResolverService.resolvePathType(f).isDir ? 'folder' : 'file'}) ${escapeMd(displayNames.get(f) ?? f)}](${commandUri('trace-viz.viz.openCode', [f])} "${f.replace(/"/g, '')}")`);
         if (codeIDs.length > HOVER_MAX_FILES) {
-            shown.push(`[+${codeIDs.length - HOVER_MAX_FILES} more…](${commandUri('trace-viz.viz.jumpToCodeFromLine', color ? [color] : [])} "Show all")`);
+            shown.push(`[+${codeIDs.length - HOVER_MAX_FILES} more…](${commandUri('trace-viz.viz.jumpToCodeFromLine', [setId ?? null, sentenceID])} "Show all")`);
         }
         md.appendMarkdown(shown.join(' &nbsp;·&nbsp; ') + '\n\n');
     }
@@ -492,10 +494,11 @@ class LineToFileVisualization implements vscode.Disposable {
 
     private updateStatusBar(): void {
         // Hide all by default
-        for (const item of this.statusBarItemsByColor.values()) {
+        this.pruneStatusBarItems();
+        for (const item of this.statusBarItemsBySet.values()) {
             item.hide();
         }
-        for (const item of this.fileToLineStatusBarItemsByColor.values()) {
+        for (const item of this.fileToLineStatusBarItemsBySet.values()) {
             item.hide();
         }
 
@@ -509,14 +512,11 @@ class LineToFileVisualization implements vscode.Disposable {
             const lineNumber = editor.selection.active.line + 1;
             const links = this.lineToLinks[lineNumber] || [];
             for (const group of this.groupBySet(links)) {
-                const item = this.statusBarItemsByColor.get(group.set.color);
-                if (!item) {
-                    continue;
-                }
+                const item = this.statusBarItemFor(this.statusBarItemsBySet, 'doc', group.set);
                 const count = new Set(group.links.map(l => l.codeID)).size;
                 item.text = `$(link) ${count} · ${truncate(group.set.shortName, 24)}`;
                 item.tooltip = this.statusTooltip(group.set, `${plural(count, 'linked code location')} for line ${lineNumber}. Click to choose one.`);
-                item.command = { title: 'Jump to linked code', command: 'trace-viz.viz.jumpToCodeFromLine', arguments: [group.set.color] };
+                item.command = { title: 'Jump to linked code', command: 'trace-viz.viz.jumpToCodeFromLine', arguments: [group.set.id] };
                 item.show();
             }
             return;
@@ -527,14 +527,11 @@ class LineToFileVisualization implements vscode.Disposable {
             const filePath = path.normalize(editor.document.uri.fsPath);
             const links = FileToLineAggregationService.getLinksForFile(filePath, this.fileToLines);
             for (const group of this.groupBySet(links)) {
-                const item = this.fileToLineStatusBarItemsByColor.get(group.set.color);
-                if (!item) {
-                    continue;
-                }
+                const item = this.statusBarItemFor(this.fileToLineStatusBarItemsBySet, 'code', group.set);
                 const count = new Set(group.links.map(l => l.sentenceID)).size;
                 item.text = `$(book) ${count} · ${truncate(group.set.shortName, 24)}`;
                 item.tooltip = this.statusTooltip(group.set, `${plural(count, 'linked documentation sentence')}. Click to choose one.`);
-                item.command = { title: 'Jump to linked documentation', command: 'trace-viz.viz.jumpToLineFromFile', arguments: [group.set.color] };
+                item.command = { title: 'Jump to linked documentation', command: 'trace-viz.viz.jumpToLineFromFile', arguments: [group.set.id] };
                 item.show();
             }
         }
@@ -555,15 +552,15 @@ class LineToFileVisualization implements vscode.Disposable {
     // Quick Picks
     // ------------------------------------------------------------------------
 
-    private async onJumpToCode(colorFilter?: VizColor): Promise<void> {
+    private async onJumpToCode(setId?: string, sentenceID?: number): Promise<void> {
         const editor = vscode.window.activeTextEditor;
         if (!editor || !this.isDocumentationEditor(editor)) {
             return;
         }
-        const lineNumber = editor.selection.active.line + 1;
+        const lineNumber = typeof sentenceID === 'number' ? sentenceID : editor.selection.active.line + 1;
         let links = this.lineToLinks[lineNumber] || [];
-        if (colorFilter) {
-            links = links.filter(l => l.color === colorFilter);
+        if (setId) {
+            links = links.filter(l => l.sourceId === setId);
         }
         if (links.length === 0) {
             return;
@@ -585,7 +582,7 @@ class LineToFileVisualization implements vscode.Disposable {
         const items: CodeItem[] = [];
         const c = this.comparison;
         const line = c?.lines.get(lineNumber);
-        if (!colorFilter && c && line) {
+        if (!setId && c && line) {
             // Both sets: group by comparison category
             for (const category of CATEGORIES) {
                 if (line[category].length === 0) {
@@ -608,7 +605,7 @@ class LineToFileVisualization implements vscode.Disposable {
         }
 
         const sentence = await this.readSentence(lineNumber);
-        const setName = colorFilter ? this.setForColor(colorFilter)?.name : undefined;
+        const setName = setId ? this.sets.find(x => x.id === setId)?.name : undefined;
         const picked = await vscode.window.showQuickPick(items, {
             title: `Code linked to line ${lineNumber}${setName ? ` · ${setName}` : ''}`,
             placeHolder: sentence ? truncate(sentence, 120) : undefined,
@@ -623,7 +620,7 @@ class LineToFileVisualization implements vscode.Disposable {
     /**
      * Handles jumping from a code file to linked documentation lines
      */
-    private async onJumpToLine(colorFilter?: VizColor): Promise<void> {
+    private async onJumpToLine(setId?: string): Promise<void> {
         const editor = vscode.window.activeTextEditor;
         if (!editor || !this.documentationPath || !this.workspaceRoot) {
             return;
@@ -638,11 +635,11 @@ class LineToFileVisualization implements vscode.Disposable {
         const links = FileToLineAggregationService.getLinksForFile(filePath, this.fileToLines);
 
         // One entry per documentation sentence, with the sets linking it. The category (in both / only A / only B)
-        // is derived from all sets, so the color filter only restricts which sentences are listed.
+        // is derived from all sets, so the set filter only restricts which sentences are listed.
         const bySentence = this.setsBySentence(links);
-        if (colorFilter) {
+        if (setId) {
             for (const [sentenceID, sets] of [...bySentence]) {
-                if (!sets.some(s => s.color === colorFilter)) {
+                if (!sets.some(s => s.id === setId)) {
                     bySentence.delete(sentenceID);
                 }
             }
@@ -670,7 +667,7 @@ class LineToFileVisualization implements vscode.Disposable {
                 sentenceID
             }));
 
-        const setName = colorFilter ? this.setForColor(colorFilter)?.name : undefined;
+        const setName = setId ? this.sets.find(x => x.id === setId)?.name : undefined;
         const picked = await vscode.window.showQuickPick(items, {
             title: `Documentation sentences linked to ${path.basename(filePath)}${setName ? ` · ${setName}` : ''}`,
             placeHolder: 'Filter by line, set or sentence text',
@@ -810,7 +807,7 @@ class LineToFileVisualization implements vscode.Disposable {
                 title: `$(link) ${group.set.name} · ${plural(count, 'file')}`,
                 tooltip: `Choose one of the ${plural(count, 'code location')} that ${group.set.name} links to line ${sentenceID}`,
                 command: 'trace-viz.viz.jumpToCodeFromLine',
-                arguments: [group.set.color]
+                arguments: [group.set.id]
             }));
         }
 
@@ -840,7 +837,7 @@ class LineToFileVisualization implements vscode.Disposable {
                 title: `$(book) ${group.set.name} · ${plural(count, 'doc sentence')}`,
                 tooltip: `Choose one of the ${plural(count, 'documentation sentence')} that ${group.set.name} links to this file`,
                 command: 'trace-viz.viz.jumpToLineFromFile',
-                arguments: [group.set.color]
+                arguments: [group.set.id]
             });
         });
 
