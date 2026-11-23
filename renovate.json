@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["local>ArDoCo/actions:renovate-preset"],
+  "packageRules": [
+    {
+      "description": "TypeScript 7 has no JS compiler API; typescript-eslint supports only <6.1.0",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Must match the Node.js version of the VS Code runtime",
+      "matchPackageNames": ["@types/node"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Must not exceed engines.vscode; bump both together by hand",
+      "matchPackageNames": ["@types/vscode"],
+      "enabled": false
+    }
+  ]
+}
