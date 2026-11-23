@@ -1,4 +1,4 @@
-// Serves demo/dist under a sub-path to mimic GitHub Pages (https://ardoco.github.io/traceviz/).
+// Serves demo/dist under a sub-path to mimic GitHub Pages (https://ardoco.de/traceviz/).
 // Usage: npm run demo:serve [-- --port 8080 --base /traceviz/]
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
