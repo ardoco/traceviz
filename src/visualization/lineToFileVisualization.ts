@@ -37,6 +37,27 @@ function plural(count: number, word: string): string {
     return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
+/**
+ * Counts code links in their own unit. A link to a folder is one link that stands for all files below
+ * it (directory heuristic), so it is counted as a folder, not as a file: "1 folder", "5 files", "2 files, 1 folder".
+ * Every count shown for a set or a comparison category (CodeLens, hover, comparison summary) uses this rule,
+ * so the numbers add up to the entries listed in the hover and the Quick Pick. A comparison category lists
+ * links of one set: "in both" and "only <approach>" list the approach's links, "only <gold standard>" the gold links.
+ * @param codeIDs Code paths of the links (duplicates are counted once)
+ */
+function describeLinks(codeIDs: Iterable<string>): string {
+    let files = 0;
+    let folders = 0;
+    for (const codeID of new Set(codeIDs)) {
+        if (PathResolverService.resolvePathType(codeID).isDir) {
+            folders++;
+        } else {
+            files++;
+        }
+    }
+    return [files > 0 ? plural(files, 'file') : '', folders > 0 ? plural(folders, 'folder') : ''].filter(Boolean).join(', ') || '0 files';
+}
+
 /** Command URI for Markdown links */
 function commandUri(command: string, args: unknown[]): string {
     return `command:${command}?${encodeURIComponent(JSON.stringify(args))}`;
@@ -287,7 +308,7 @@ class LineToFileVisualization implements vscode.Disposable {
             .filter(cat => line[cat].length > 0)
             .map(cat => {
                 const label = this.categoryLabel(c, cat);
-                return `${line[cat].length} ${label.charAt(0).toLowerCase()}${label.substring(1)}`;
+                return `${describeLinks(line[cat].map(l => l.codeID))} ${label.charAt(0).toLowerCase()}${label.substring(1)}`;
             })
             .join(' · ');
     }
@@ -442,7 +463,7 @@ class LineToFileVisualization implements vscode.Disposable {
         if (c && line) {
             for (const category of CATEGORIES) {
                 if (line[category].length > 0) {
-                    md.appendMarkdown(`${dotMarkdown(this.categoryColors(c, category))} **${escapeMd(this.categoryLabel(c, category))}** · ${line[category].length}  \n`);
+                    md.appendMarkdown(`${dotMarkdown(this.categoryColors(c, category))} **${escapeMd(this.categoryLabel(c, category))}** · ${describeLinks(line[category].map(l => l.codeID))}  \n`);
                     this.appendFileList(md, line[category].map(l => l.codeID), displayNames, sentenceID, undefined);
                 }
             }
@@ -455,7 +476,7 @@ class LineToFileVisualization implements vscode.Disposable {
 
         for (const group of this.groupBySet(linksOnLine)) {
             const files = [...new Set(group.links.map(l => l.codeID))];
-            md.appendMarkdown(`${dotMarkdown(group.set.color)} **${escapeMd(group.set.name)}** · ${plural(files.length, 'linked file')}  \n`);
+            md.appendMarkdown(`${dotMarkdown(group.set.color)} **${escapeMd(group.set.name)}** · ${describeLinks(files)}  \n`);
             this.appendFileList(md, files, displayNames, sentenceID, group.set.id);
         }
         return md;
@@ -804,8 +825,8 @@ class LineToFileVisualization implements vscode.Disposable {
         for (const group of this.groupBySet(links)) {
             const count = new Set(group.links.map(l => l.codeID)).size;
             lenses.push(new vscode.CodeLens(range, {
-                title: `$(link) ${group.set.name} · ${plural(count, 'file')}`,
-                tooltip: `Choose one of the ${plural(count, 'code location')} that ${group.set.name} links to line ${sentenceID}`,
+                title: `$(link) ${group.set.name} · ${describeLinks(group.links.map(l => l.codeID))}`,
+                tooltip: `Choose one of the ${plural(count, 'code location')} that ${group.set.name} links to line ${sentenceID}. A folder link covers all files below it.`,
                 command: 'trace-viz.viz.jumpToCodeFromLine',
                 arguments: [group.set.id]
             }));
@@ -816,7 +837,7 @@ class LineToFileVisualization implements vscode.Disposable {
         if (c && line) {
             lenses.push(new vscode.CodeLens(range, {
                 title: `$(git-compare) ${this.comparisonSummary(c, line)}`,
-                tooltip: `Compare ${c.candidate.name} with ${c.reference.name} on line ${sentenceID}`,
+                tooltip: `Compare ${c.candidate.name} with ${c.reference.name} on line ${sentenceID}. Counts are links; a folder link matches every file below it.`,
                 command: 'trace-viz.viz.jumpToCodeFromLine',
                 arguments: []
             }));
