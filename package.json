@@ -217,12 +217,11 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "25.x",
     "@types/vscode": "^1.134.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.3",
-    "@typescript-eslint/parser": "^8.67.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^10.3.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
   },
   "dependencies": {
     "@types/node-fetch": "^2.6.13",
