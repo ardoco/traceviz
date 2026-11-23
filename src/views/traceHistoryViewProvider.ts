@@ -87,7 +87,7 @@ export class TraceHistoryViewProvider implements vscode.TreeDataProvider<History
      */
     private computeStats(history: TraceHistoryEntry[], workspaceRoot: string): Map<string, HistoryItemStats> {
         const stats = new Map<string, HistoryItemStats>();
-        const completed = history.filter(e => e.csvPath && e.status !== 'loading' && e.status !== 'error');
+        const completed = history.filter(e => e.csvPath && e.status !== 'loading' && e.status !== 'error' && e.status !== 'cancelled');
         const signatures = new Map(completed.map(e => [e.id, TraceHistoryViewProvider.fileSignature(e.csvPath)]));
 
         const activeGold = completed.filter(e => e.active && HistoryReaderService.isGoldStandard(e));
@@ -151,7 +151,7 @@ export class HistoryItem extends vscode.TreeItem {
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
         public readonly originalName?: string,
         public readonly csvPath?: string,
-        public readonly status?: 'loading' | 'completed' | 'error',
+        public readonly status?: 'loading' | 'completed' | 'error' | 'cancelled',
         public readonly historyId?: string,
         public readonly active?: boolean,
         public readonly color?: VizColor,
@@ -172,6 +172,9 @@ export class HistoryItem extends vscode.TreeItem {
         } else if (status === 'error') {
             this.iconPath = new vscode.ThemeIcon('x', new vscode.ThemeColor('charts.red'));
             this.description = `${timestamp ?? ''} • Error`;
+        } else if (status === 'cancelled') {
+            this.iconPath = new vscode.ThemeIcon('circle-slash');
+            this.description = `${timestamp ?? ''} • Cancelled`;
         } else if (status === 'completed') {
             this.iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
         }

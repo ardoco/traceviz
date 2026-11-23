@@ -19,7 +19,7 @@ export interface TraceHistoryEntry {
     /** Original name of the file or description */
     originalName: string;
     /** Current status of the trace link generation */
-    status?: 'loading' | 'completed' | 'error';
+    status?: 'loading' | 'completed' | 'error' | 'cancelled';
     /** Request ID for async operations (e.g., ArDoCo API requests) */
     requestId?: string;
     /** Whether this visualization is currently active */

@@ -9,6 +9,12 @@ import {
     ArDoCoTraceLink,
     SadCodeResponse
 } from '../types';
+import {
+    CONSTANTS_NUMBER_POLLING_BACKOFF_FACTOR,
+    CONSTANTS_NUMBER_POLLING_INITIAL_INTERVAL_MS,
+    CONSTANTS_NUMBER_POLLING_MAX_INTERVAL_MS,
+    CONSTANTS_NUMBER_POLLING_TIMEOUT_MS
+} from '../constants';
 import { Logger } from './logger.util';
 import { toUri } from './uri.util';
 
@@ -70,12 +76,45 @@ export interface PollResultResponse {
  * Options for polling for results
  */
 export interface PollOptions {
-    /** Maximum number of polling attempts */
-    maxAttempts?: number;
-    /** Delay between polling attempts in milliseconds */
+    /** Initial delay between polling attempts in milliseconds (grows by the backoff factor up to `maxPollInterval`) */
     pollInterval?: number;
-    /** Callback for progress updates */
-    onProgress?: (attempt: number, maxAttempts: number) => void;
+    /** Maximum delay between polling attempts in milliseconds */
+    maxPollInterval?: number;
+    /** Overall timeout in milliseconds, counted from the first poll */
+    timeout?: number;
+    /** Aborts polling and the request in flight; polling then rejects with a PollCancelledError */
+    signal?: AbortSignal;
+    /** Callback for progress updates (attempt number and milliseconds waited so far) */
+    onProgress?: (attempt: number, elapsedMs: number) => void;
+}
+
+/**
+ * Thrown when polling is aborted through the abort signal (e.g. the user cancelled the progress notification)
+ */
+export class PollCancelledError extends Error {
+    constructor() {
+        super('Trace link generation was cancelled');
+        this.name = 'PollCancelledError';
+    }
+}
+
+/** Waits for the given time; rejects with a PollCancelledError as soon as the signal is aborted */
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new PollCancelledError());
+            return;
+        }
+        const onAbort = () => {
+            clearTimeout(timer);
+            reject(new PollCancelledError());
+        };
+        const timer = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
 }
 
 /**
@@ -140,7 +179,8 @@ export class ArDoCoApiUtil {
     private static async makeRequest(
         url: string,
         method: 'GET' | 'POST' = 'GET',
-        body?: FormData
+        body?: FormData,
+        signal?: AbortSignal
     ): Promise<Response> {
         Logger.info(`${method} request to:`, url);
 
@@ -148,7 +188,8 @@ export class ArDoCoApiUtil {
         const response = await fetch(url, {
             method,
             headers: { 'accept': 'application/json' },
-            body
+            body,
+            signal
         });
 
         Logger.debug('Response status:', response.status);
@@ -206,38 +247,54 @@ export class ArDoCoApiUtil {
     }
 
     /**
-     * Polls for trace link generation results
+     * Polls for trace link generation results. The wait between polls starts at `pollInterval` and grows
+     * by CONSTANTS_NUMBER_POLLING_BACKOFF_FACTOR up to `maxPollInterval`; polling gives up after `timeout`.
      * @param config ArDoCo configuration
      * @param requestId Request ID from the start request
      * @param options Polling options
      * @returns Result response when completed
+     * @throws PollCancelledError if the abort signal fires, an Error on timeout or API errors
      */
     static async pollForResults(
         config: ArDoCoConfig,
         requestId: string,
         options: PollOptions = {}
     ): Promise<PollResultResponse> {
-        const maxAttempts = options.maxAttempts || 5;
-        const pollInterval = options.pollInterval || 60000; // Default 60 seconds
+        const maxInterval = options.maxPollInterval ?? CONSTANTS_NUMBER_POLLING_MAX_INTERVAL_MS;
+        const timeout = options.timeout ?? CONSTANTS_NUMBER_POLLING_TIMEOUT_MS;
+        let interval = options.pollInterval ?? CONSTANTS_NUMBER_POLLING_INITIAL_INTERVAL_MS;
+        const startedAt = Date.now();
         let attempts = 0;
 
-        while (attempts < maxAttempts) {
+        while (true) {
             attempts++;
-            
-            if (options.onProgress) {
-                options.onProgress(attempts, maxAttempts);
-            }
-
-            Logger.debug(`Polling attempt ${attempts}/${maxAttempts} for requestId: ${requestId}`);
+            options.onProgress?.(attempts, Date.now() - startedAt);
+            Logger.debug(`Polling attempt ${attempts} for requestId: ${requestId}`);
 
             const requestUrl = `${this.getBaseUrl(config)}/api/wait-for-result/${requestId}`;
-            const response = await this.makeRequest(requestUrl, 'GET');
+            let response: Response;
+            try {
+                response = await this.makeRequest(requestUrl, 'GET', undefined, options.signal);
+            } catch (error) {
+                if (options.signal?.aborted) {
+                    throw new PollCancelledError();
+                }
+                throw error;
+            }
 
             if (!response.ok) {
                 await this.handleErrorResponse(response);
             }
 
-            const result = await response.json() as PollResultResponse;
+            let result: PollResultResponse;
+            try {
+                result = await response.json() as PollResultResponse;
+            } catch (error) {
+                if (options.signal?.aborted) {
+                    throw new PollCancelledError();
+                }
+                throw error;
+            }
             Logger.debug('Polling result:', JSON.stringify(result, null, 2));
 
             // Check if result is ready (new API format with result object)
@@ -249,7 +306,7 @@ export class ArDoCoApiUtil {
                     traceLinks: result.result.traceLinks
                 };
             }
-            
+
             // Legacy status-based check (for backward compatibility)
             if (result.status === ARDOCO_RESPONSE_STATUS.OK || result.status === ARDOCO_RESPONSE_STATUS.COMPLETED) {
                 Logger.info('Trace link generation completed successfully');
@@ -257,19 +314,17 @@ export class ArDoCoApiUtil {
             } else if (result.status === ARDOCO_RESPONSE_STATUS.ERROR) {
                 Logger.error('Trace link generation failed:', result.message);
                 throw new Error(result.message || 'Trace link generation failed');
-            } else {
-                // Still processing - continue polling
-                Logger.debug('Result not ready yet, message:', result.message);
-                if (attempts < maxAttempts) {
-                    Logger.debug(`Waiting ${pollInterval}ms before next attempt...`);
-                    await new Promise(resolve => setTimeout(resolve, pollInterval));
-                } else {
-                    throw new Error(`Timeout waiting for results after ${maxAttempts} attempts`);
-                }
             }
-        }
 
-        throw new Error(`Timeout waiting for results after ${maxAttempts} attempts`);
+            // Still processing - wait with backoff and poll again, unless the timeout is reached
+            Logger.debug('Result not ready yet, message:', result.message);
+            if (Date.now() - startedAt + interval >= timeout) {
+                throw new Error(`Timeout waiting for results after ${Math.round((Date.now() - startedAt) / 1000)} s`);
+            }
+            Logger.debug(`Waiting ${interval}ms before next attempt...`);
+            await abortableDelay(interval, options.signal);
+            interval = Math.min(maxInterval, Math.round(interval * CONSTANTS_NUMBER_POLLING_BACKOFF_FACTOR));
+        }
     }
 
     /**

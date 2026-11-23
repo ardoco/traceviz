@@ -5,7 +5,7 @@ import { ArDoCoConfig, TraceHistoryEntry, ARDOCO_TRACE_LINK_TYPE, ArDoCoTraceLin
 import { CONSTANTS_FILE_PATH_HISTORY, CONSTANTS_NUMBER_JSON_INDENT } from '../../constants';
 import { TraceVizStorageUtil } from '../../utils/traceVizStorage.util';
 import { Logger } from '../../utils/logger.util';
-import { ArDoCoApiUtil } from '../../utils/ardocoApi.util';
+import { ArDoCoApiUtil, PollCancelledError } from '../../utils/ardocoApi.util';
 import { toUri } from '../../utils/uri.util';
 import { getArchitectureModelFormat, getCodeModelPath, readArDoCoConfig } from './configArDoCo';
 
@@ -205,24 +205,29 @@ async function generateTraceLinks(approach: TraceLinkApproach): Promise<void> {
             location: vscode.ProgressLocation.Notification,
             title: `Generating ${approach.displayName} Trace Links`,
             cancellable: true,
-        }, async (progress) => {
+        }, async (progress, token) => {
+            // The Cancel button aborts the polling and the request in flight
+            const abort = new AbortController();
+            token.onCancellationRequested(() => abort.abort());
             return await ArDoCoApiUtil.pollForResults(config, startResponse.requestId, {
-                maxAttempts: 5,
-                pollInterval: 60000,
-                onProgress: (attempt, maxAttempts) => {
-                    progress.report({
-                        message: `Waiting for results... (attempt ${attempt}/${maxAttempts})`,
-                        increment: 20,
-                    });
-                    Logger.debug(`Polling progress: ${attempt}/${maxAttempts}`);
+                signal: abort.signal,
+                onProgress: (attempt, elapsedMs) => {
+                    progress.report({ message: `Waiting for results... (${Math.round(elapsedMs / 1000)} s, check ${attempt})` });
+                    Logger.debug(`Polling progress: check ${attempt} after ${elapsedMs} ms`);
                 },
             });
         });
 
         await handleSuccessfulPollResult(approach, result, startResponse.requestId, workspaceFolder, historyEntry, codeModelFile);
     } catch (error) {
-        historyEntry.status = 'error';
+        const cancelled = error instanceof PollCancelledError;
+        historyEntry.status = cancelled ? 'cancelled' : 'error';
         updateTraceHistoryEntry(workspaceFolder, historyEntry);
+        if (cancelled) {
+            vscode.window.showInformationMessage(`${approach.displayName} trace link generation cancelled.`);
+            vscode.commands.executeCommand('trace-viz.refreshHistory');
+            return;
+        }
         vscode.window.showErrorMessage(`Failed to generate ${approach.displayName} trace links: ${error}`);
         vscode.commands.executeCommand('trace-viz.refreshHistory');
     }
