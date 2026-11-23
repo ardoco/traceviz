@@ -2,10 +2,12 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { convert, writeTextFile } from './convert';
 import { ArDoCoConfig, TraceHistoryEntry, ARDOCO_TRACE_LINK_TYPE, ArDoCoTraceLinkType } from '../../types';
-import { CONSTANTS_FILE_PATH_ARDOCO_CONFIG, CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL, CONSTANTS_FILE_PATH_HISTORY, CONSTANTS_NUMBER_JSON_INDENT } from '../../constants';
+import { CONSTANTS_FILE_PATH_HISTORY, CONSTANTS_NUMBER_JSON_INDENT } from '../../constants';
 import { TraceVizStorageUtil } from '../../utils/traceVizStorage.util';
 import { Logger } from '../../utils/logger.util';
 import { ArDoCoApiUtil } from '../../utils/ardocoApi.util';
+import { toUri } from '../../utils/uri.util';
+import { getArchitectureModelFormat, getCodeModelPath, readArDoCoConfig } from './configArDoCo';
 
 // ============================================================================
 // Approach configuration (exported for use by approach-specific files)
@@ -16,7 +18,6 @@ export interface TraceLinkApproach {
     displayName: string;
     idPrefix: string;
     requiresArchitectureModel: boolean;
-    architectureModelFormat?: string;
     csvPrefix: string;
 }
 
@@ -35,21 +36,15 @@ function validatePrerequisites(approach: TraceLinkApproach): {
         return null;
     }
 
-    const configFile = TraceVizStorageUtil.getStorageFilePath(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
-    if (!configFile || !fs.existsSync(configFile)) {
+    const config = readArDoCoConfig(workspaceFolder);
+    if (!config) {
         vscode.window.showErrorMessage('ARDoCo configuration not found. Please configure ARDoCo first.');
         return null;
     }
 
-    const codeModelFile = TraceVizStorageUtil.getStorageFilePath(CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL, workspaceFolder);
+    const codeModelFile = getCodeModelPath(config, workspaceFolder);
     if (!codeModelFile || !fs.existsSync(codeModelFile)) {
-        vscode.window.showErrorMessage('Code model not found. Please generate the code model first.');
-        return null;
-    }
-
-    const config = TraceVizStorageUtil.readJsonFile<ArDoCoConfig>(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
-    if (!config) {
-        vscode.window.showErrorMessage('Failed to read ARDoCo configuration.');
+        vscode.window.showErrorMessage('Code model not found. Please select a JSON code model or generate the code model first.');
         return null;
     }
 
@@ -65,7 +60,7 @@ function validatePrerequisites(approach: TraceLinkApproach): {
 
     if (approach.requiresArchitectureModel) {
         if (!config.architectureModelPath) {
-            vscode.window.showErrorMessage(`Architecture model path not configured in ARDoCo settings. ${approach.displayName} requires a UML architecture model.`);
+            vscode.window.showErrorMessage(`Architecture model path not configured in ARDoCo settings. ${approach.displayName} requires an architecture model (PCM or UML).`);
             return null;
         }
         if (!fs.existsSync(config.architectureModelPath)) {
@@ -126,10 +121,11 @@ async function saveTraceLinkResults(
     result: any,
     requestId: string,
     workspaceFolder: vscode.WorkspaceFolder,
-    historyEntry: TraceHistoryEntry
+    historyEntry: TraceHistoryEntry,
+    codeModelFile: string
 ): Promise<string> {
-    const codeModelPath = TraceVizStorageUtil.getStorageFilePath(CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL, workspaceFolder) ?? undefined;
-    const csv = convert({ type: 'ARDOCO_SAD_CODE_TO_CSV', input: result, codeModelPath });
+    const codeModel = new TextDecoder().decode(await vscode.workspace.fs.readFile(toUri(codeModelFile)));
+    const csv = convert({ type: 'ARDOCO_SAD_CODE_TO_CSV', input: result, codeModel });
     const resultsFile = TraceVizStorageUtil.getStorageFilePath(`${approach.csvPrefix}-${requestId}.csv`, workspaceFolder);
 
     if (!resultsFile) {
@@ -158,7 +154,8 @@ async function handleSuccessfulPollResult(
     result: any,
     requestId: string,
     workspaceFolder: vscode.WorkspaceFolder,
-    historyEntry: TraceHistoryEntry
+    historyEntry: TraceHistoryEntry,
+    codeModelFile: string
 ): Promise<void> {
     Logger.debug('Processing result, message:', result.message);
     Logger.debug('traceLinks exists:', !!result.traceLinks);
@@ -171,7 +168,7 @@ async function handleSuccessfulPollResult(
         throw new Error('No trace links found in API response');
     }
 
-    await saveTraceLinkResults(approach, { ...result, traceLinks }, requestId, workspaceFolder, historyEntry);
+    await saveTraceLinkResults(approach, { ...result, traceLinks }, requestId, workspaceFolder, historyEntry, codeModelFile);
     vscode.window.showInformationMessage(`${approach.displayName} trace links generated successfully!`);
     vscode.commands.executeCommand('trace-viz.refreshHistory');
 }
@@ -197,7 +194,7 @@ async function generateTraceLinks(approach: TraceLinkApproach): Promise<void> {
             codeModelFile,
             ...(approach.requiresArchitectureModel && {
                 architectureModelPath: config.architectureModelPath,
-                architectureModelFormat: approach.architectureModelFormat,
+                architectureModelFormat: getArchitectureModelFormat(config),
             }),
         });
 
@@ -222,7 +219,7 @@ async function generateTraceLinks(approach: TraceLinkApproach): Promise<void> {
             });
         });
 
-        await handleSuccessfulPollResult(approach, result, startResponse.requestId, workspaceFolder, historyEntry);
+        await handleSuccessfulPollResult(approach, result, startResponse.requestId, workspaceFolder, historyEntry, codeModelFile);
     } catch (error) {
         historyEntry.status = 'error';
         updateTraceHistoryEntry(workspaceFolder, historyEntry);
@@ -279,7 +276,6 @@ const TRANS_ARC_APPROACH: TraceLinkApproach = {
     displayName: 'TransArC (SAD-SAM-Code)',
     idPrefix: 'trans-arc',
     requiresArchitectureModel: true,
-    architectureModelFormat: 'UML',
     csvPrefix: 'trans-arc-results',
 };
 

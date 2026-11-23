@@ -1,5 +1,4 @@
-import FormData from 'form-data';
-import * as fs from 'fs';
+import * as vscode from 'vscode';
 import * as path from 'path';
 import {
     ArDoCoConfig,
@@ -11,6 +10,7 @@ import {
     SadCodeResponse
 } from '../types';
 import { Logger } from './logger.util';
+import { toUri } from './uri.util';
 
 /**
  * Options for starting a trace link generation request
@@ -96,30 +96,38 @@ export class ArDoCoApiUtil {
     }
 
     /**
+     * Reads a workspace file through the VS Code file system API (works on desktop and in VS Code for the Web)
+     */
+    private static async readFileBlob(filePath: string, type?: string): Promise<Blob> {
+        const data = await vscode.workspace.fs.readFile(toUri(filePath));
+        return new Blob([data as Uint8Array<ArrayBuffer>], type ? { type } : undefined);
+    }
+
+    /**
+     * Gets the base URL of the REST API without trailing slashes
+     */
+    private static getBaseUrl(config: ArDoCoConfig): string {
+        return config.restApiUrl.replace(/\/+$/, '');
+    }
+
+    /**
      * Prepares form data for trace link generation request
      */
-    private static prepareFormData(options: StartTraceLinkRequestOptions): FormData {
+    private static async prepareFormData(options: StartTraceLinkRequestOptions): Promise<FormData> {
         const formData = new FormData();
 
-        if (options.documentationPath && fs.existsSync(options.documentationPath)) {
-            formData.append('inputText', fs.createReadStream(options.documentationPath), {
-                filename: path.basename(options.documentationPath),
-                contentType: 'text/plain'
-            });
+        if (options.documentationPath) {
+            formData.append('inputText', await this.readFileBlob(options.documentationPath, 'text/plain'), path.basename(options.documentationPath));
             Logger.debug('Added inputText to form data:', options.documentationPath);
         }
 
-        if (options.codeModelFile && fs.existsSync(options.codeModelFile)) {
-            formData.append('inputCode', fs.createReadStream(options.codeModelFile), {
-                filename: path.basename(options.codeModelFile)
-            });
+        if (options.codeModelFile) {
+            formData.append('inputCode', await this.readFileBlob(options.codeModelFile), path.basename(options.codeModelFile));
             Logger.debug('Added inputCode to form data:', options.codeModelFile);
         }
 
-        if (options.architectureModelPath && fs.existsSync(options.architectureModelPath)) {
-            formData.append('inputArchitectureModel', fs.createReadStream(options.architectureModelPath), {
-                filename: path.basename(options.architectureModelPath)
-            });
+        if (options.architectureModelPath) {
+            formData.append('inputArchitectureModel', await this.readFileBlob(options.architectureModelPath), path.basename(options.architectureModelPath));
             Logger.debug('Added inputArchitectureModel to form data:', options.architectureModelPath);
         }
 
@@ -132,35 +140,25 @@ export class ArDoCoApiUtil {
     private static async makeRequest(
         url: string,
         method: 'GET' | 'POST' = 'GET',
-        body?: FormData | string,
-        headers?: Record<string, string>
-    ): Promise<any> {
-        const fetch = (await import('node-fetch')).default;
-        
-        const requestHeaders: Record<string, string> = {
-            'accept': 'application/json',
-            ...headers
-        };
-
+        body?: FormData
+    ): Promise<Response> {
         Logger.info(`${method} request to:`, url);
-        Logger.debug('Request headers:', requestHeaders);
 
+        // The multipart content type (with boundary) is set by fetch from the FormData body
         const response = await fetch(url, {
             method,
-            headers: requestHeaders,
-            body: body as any
+            headers: { 'accept': 'application/json' },
+            body
         });
 
         Logger.debug('Response status:', response.status);
-        Logger.debug('Response headers:', Object.fromEntries(response.headers.entries()));
-
         return response;
     }
 
     /**
      * Handles API response errors
      */
-    private static async handleErrorResponse(response: any): Promise<never> {
+    private static async handleErrorResponse(response: Response): Promise<never> {
         const responseText = await response.text();
         Logger.error('API error response:', {
             status: response.status,
@@ -181,12 +179,12 @@ export class ArDoCoApiUtil {
         options: StartTraceLinkRequestOptions
     ): Promise<StartTraceLinkResponse> {
         const endpoint = this.getEndpointUrl(options.traceLinkType);
-        let requestUrl = `${config.restApiUrl}/api/${endpoint}/start?projectName=${encodeURIComponent(config.projectName)}`;
+        let requestUrl = `${this.getBaseUrl(config)}/api/${endpoint}/start?projectName=${encodeURIComponent(config.projectName)}`;
         if (options.architectureModelFormat) {
             requestUrl += `&inputArchitectureModelFormat=${encodeURIComponent(options.architectureModelFormat)}`;
         }
         
-        const formData = this.prepareFormData(options);
+        const formData = await this.prepareFormData(options);
         Logger.debug('Form data prepared for', options.traceLinkType);
 
         const response = await this.makeRequest(requestUrl, 'POST', formData);
@@ -232,7 +230,7 @@ export class ArDoCoApiUtil {
 
             Logger.debug(`Polling attempt ${attempts}/${maxAttempts} for requestId: ${requestId}`);
 
-            const requestUrl = `${config.restApiUrl}/api/wait-for-result/${requestId}`;
+            const requestUrl = `${this.getBaseUrl(config)}/api/wait-for-result/${requestId}`;
             const response = await this.makeRequest(requestUrl, 'GET');
 
             if (!response.ok) {

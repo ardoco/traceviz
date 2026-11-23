@@ -18,6 +18,8 @@
     "onCommand:trace-viz.csvDirect",
     "onCommand:trace-viz.refreshHistory",
     "onCommand:trace-viz.openArDoCoWebview",
+    "onCommand:trace-viz.ardoCoConfigureQuick",
+    "onCommand:trace-viz.ardoCoSelectCodeModel",
     "onCommand:trace-viz.openLissaWebview",
     "onCommand:trace-viz.ardoCoGenerateModel",
     "onCommand:trace-viz.ardoCoGenerateLinks",
@@ -78,6 +80,15 @@
         "command": "trace-viz.openArDoCoWebview",
         "title": "Configure ARDoCo",
         "icon": "$(gear)"
+      },
+      {
+        "command": "trace-viz.ardoCoConfigureQuick",
+        "title": "Configure ARDoCo (without Webview)",
+        "icon": "$(list-selection)"
+      },
+      {
+        "command": "trace-viz.ardoCoSelectCodeModel",
+        "title": "Select ARDoCo Code Model File"
       },
       {
         "command": "trace-viz.openLissaWebview",
@@ -218,6 +229,11 @@
           "group": "inline@1"
         },
         {
+          "command": "trace-viz.ardoCoConfigureQuick",
+          "when": "view == traceViz.approach && viewItem == traceViz.ardoCoConfig",
+          "group": "inline@2"
+        },
+        {
           "command": "trace-viz.showVisualization",
           "when": "view == traceViz.history && viewItem =~ /traceViz\\.historyItem-inactive(\\-sadcode)?/",
           "group": "inline@1"
@@ -272,11 +288,6 @@
     "path-browserify": "^1.0.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.1"
-  },
-  "dependencies": {
-    "@types/node-fetch": "^2.6.13",
-    "form-data": "^4.0.5",
-    "node-fetch": "^3.3.2"
   },
   "overrides": {
     "diff": "^8.0.4",

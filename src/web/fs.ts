@@ -277,7 +277,3 @@ export function readdirSync(p: string, options?: { withFileTypes?: boolean }) {
     }
     return options?.withFileTypes ? children : children.map(c => c.name);
 }
-
-export function createReadStream(p: string): never {
-    throw fsError('ENOTSUP', 'createReadStream (not available in VS Code for the Web)', p);
-}

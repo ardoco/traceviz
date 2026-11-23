@@ -49,6 +49,12 @@ export const CONSTANTS_COMMAND_OPEN_ARDOCO_WEBVIEW = 'trace-viz.openArDoCoWebvie
 /** Command: Generate ArDoCo code model */
 export const CONSTANTS_COMMAND_ARDOCO_GENERATE_MODEL = 'trace-viz.ardoCoGenerateModel';
 
+/** Command: Configure ARDoCo with quick picks instead of the webview */
+export const CONSTANTS_COMMAND_ARDOCO_CONFIGURE_QUICK = 'trace-viz.ardoCoConfigureQuick';
+
+/** Command: Select an existing JSON code model for ARDoCo */
+export const CONSTANTS_COMMAND_ARDOCO_SELECT_CODE_MODEL = 'trace-viz.ardoCoSelectCodeModel';
+
 /** Command: Generate ArDoCo trace links */
 export const CONSTANTS_COMMAND_ARDOCO_GENERATE_LINKS = 'trace-viz.ardoCoGenerateLinks';
 

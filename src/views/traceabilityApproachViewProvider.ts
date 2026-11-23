@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { CONSTANTS_FILE_PATH_ARDOCO_CONFIG, CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL, CONSTANTS_FILE_PATH_ARDOCO_TRACE_LINKS } from '../constants';
+import { CONSTANTS_FILE_PATH_ARDOCO_CONFIG, CONSTANTS_FILE_PATH_ARDOCO_TRACE_LINKS } from '../constants';
+import { ArDoCoConfig } from '../types';
 import { TraceVizStorageUtil } from '../utils/traceVizStorage.util';
+import { getCodeModelPath, readArDoCoConfig } from '../traceabilityApproach/ardoco/configArDoCo';
 
 /**
  * Tree data provider for the Traceability Approach view
@@ -14,7 +16,7 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
     private readonly disposables: vscode.Disposable[] = [];
 
     /**
-     * @param nodeFeatures Whether approaches that need Node.js (ARDoCo, LiSSA) are available;
+     * @param nodeFeatures Whether features that need Node.js (LiSSA, ARDoCo code model extraction) are available;
      *                     false in VS Code for the Web, where they are shown as unavailable
      */
     constructor(private readonly nodeFeatures: boolean = true) {
@@ -47,18 +49,11 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
     }
 
     getChildren(element?: ApproachItem): Thenable<ApproachItem[]> {
-        if (!element && !this.nodeFeatures) {
-            return Promise.resolve([
-                new ApproachItem('CSV Direct', vscode.TreeItemCollapsibleState.None),
-                ApproachItem.desktopOnly('ARDoCo'),
-                ApproachItem.desktopOnly('LiSSA')
-            ]);
-        }
         if (!element) {
             return Promise.resolve([
                 new ApproachItem('CSV Direct', vscode.TreeItemCollapsibleState.None),
                 new ApproachItem('ARDoCo', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoItem'),
-                new ApproachItem('LiSSA', vscode.TreeItemCollapsibleState.None)
+                this.nodeFeatures ? new ApproachItem('LiSSA', vscode.TreeItemCollapsibleState.None) : ApproachItem.desktopOnly('LiSSA')
             ]);
         }
         if (element.label === 'ARDoCo') {
@@ -66,9 +61,15 @@ export class TraceabilityApproachViewProvider implements vscode.TreeDataProvider
             const hasCodeModel = checkArDoCoCodeModelExists();
             const hasTraceLinks = checkArDoCoTraceLinksExist();
             const traceLinksPrerequisitesMet = hasConfig && hasCodeModel;
+            const selectCodeModel = new ApproachItem('Select Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoSelectCodeModel', hasCodeModel, true, hasCodeModel);
+            selectCodeModel.description = getCodeModelFileName();
+            selectCodeModel.tooltip = 'Select an existing JSON code model (.acm/.json) that is sent to the ARDoCo REST API';
             return Promise.resolve([
                 new ApproachItem('ARDoCo Config', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoConfig', hasConfig),
-                new ApproachItem('Generate Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoGenerateModel', hasCodeModel, hasConfig, hasConfig && !hasCodeModel),
+                selectCodeModel,
+                this.nodeFeatures
+                    ? new ApproachItem('Generate Code Model', vscode.TreeItemCollapsibleState.None, 'traceViz.ardoCoGenerateModel', hasCodeModel, hasConfig, hasConfig && !hasCodeModel)
+                    : ApproachItem.desktopOnly('Generate Code Model'),
                 new ApproachItem('Generate Trace Links', vscode.TreeItemCollapsibleState.Collapsed, 'traceViz.ardoCoGenerateLinks', undefined, undefined, traceLinksPrerequisitesMet)
             ]);
         }
@@ -160,6 +161,11 @@ export class ApproachItem extends vscode.TreeItem {
                 command: 'trace-viz.openArDoCoWebview',
                 title: 'Open ARDoCo Configuration'
             };
+        } else if (label === 'Select Code Model') {
+            this.command = {
+                command: 'trace-viz.ardoCoSelectCodeModel',
+                title: 'Select Code Model'
+            };
         } else if (label === 'Generate Code Model' && isEnabled) {
             this.command = {
                 command: 'trace-viz.ardoCoGenerateModel',
@@ -197,12 +203,32 @@ function checkArDoCoConfigExists(): boolean {
     return TraceVizStorageUtil.fileExists(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
 }
 
-function checkArDoCoCodeModelExists(): boolean {
+/**
+ * Reads the ARDoCo configuration and the code model path of the first workspace folder
+ */
+function readConfigWithCodeModel(): { config: ArDoCoConfig; codeModelPath?: string } | undefined {
     const workspaceFolder = TraceVizStorageUtil.getWorkspaceFolder();
     if (!workspaceFolder) {
-        return false;
+        return undefined;
     }
-    return TraceVizStorageUtil.fileExists(CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL, workspaceFolder);
+    const config = readArDoCoConfig(workspaceFolder);
+    if (!config) {
+        return undefined;
+    }
+    return { config, codeModelPath: getCodeModelPath(config, workspaceFolder) };
+}
+
+function fileExists(filePath?: string): boolean {
+    return !!filePath && fs.existsSync(filePath);
+}
+
+function checkArDoCoCodeModelExists(): boolean {
+    return fileExists(readConfigWithCodeModel()?.codeModelPath);
+}
+
+function getCodeModelFileName(): string | undefined {
+    const codeModelPath = readConfigWithCodeModel()?.codeModelPath;
+    return fileExists(codeModelPath) ? path.basename(codeModelPath!) : undefined;
 }
 
 function checkArDoCoTraceLinksExist(): boolean {
@@ -214,72 +240,25 @@ function checkArDoCoTraceLinksExist(): boolean {
 }
 
 function checkSamCodePrerequisites(): boolean {
-    const workspaceFolder = TraceVizStorageUtil.getWorkspaceFolder();
-    if (!workspaceFolder) {
-        return false;
-    }
-
-    const config = TraceVizStorageUtil.readJsonFile<any>(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
-    if (!config) {
-        return false;
-    }
-    
-    // SAM-Code requires: Architecture Model Path and Code Path
-    return !!(config.architectureModelPath && config.codePath && 
-             fs.existsSync(config.architectureModelPath) && 
-             fs.existsSync(config.codePath));
+    const current = readConfigWithCodeModel();
+    // SAM-Code requires: Architecture Model and Code Model
+    return !!current && fileExists(current.config.architectureModelPath) && fileExists(current.codeModelPath);
 }
 
 function checkSadSamPrerequisites(): boolean {
-    const workspaceFolder = TraceVizStorageUtil.getWorkspaceFolder();
-    if (!workspaceFolder) {
-        return false;
-    }
-
-    const config = TraceVizStorageUtil.readJsonFile<any>(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
-    if (!config) {
-        return false;
-    }
-    
-    // SAD-SAM requires: Documentation Path and Architecture Model Path
-    return !!(config.documentationPath && config.architectureModelPath && 
-             fs.existsSync(config.documentationPath) && 
-             fs.existsSync(config.architectureModelPath));
+    const current = readConfigWithCodeModel();
+    // SAD-SAM requires: Documentation and Architecture Model
+    return !!current && fileExists(current.config.documentationPath) && fileExists(current.config.architectureModelPath);
 }
 
 function checkSadSamCodePrerequisites(): boolean {
-    const workspaceFolder = TraceVizStorageUtil.getWorkspaceFolder();
-    if (!workspaceFolder) {
-        return false;
-    }
-
-    const config = TraceVizStorageUtil.readJsonFile<any>(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
-    if (!config) {
-        return false;
-    }
-    
-    // SAD-SAM-Code requires: Documentation Path and Architecture Model Path and Code Path
-    return !!(config.documentationPath && config.architectureModelPath && config.codePath && 
-             fs.existsSync(config.documentationPath) && 
-             fs.existsSync(config.architectureModelPath) && 
-             fs.existsSync(config.codePath));
+    const current = readConfigWithCodeModel();
+    // SAD-SAM-Code requires: Documentation, Architecture Model and Code Model
+    return !!current && fileExists(current.config.documentationPath) && fileExists(current.config.architectureModelPath) && fileExists(current.codeModelPath);
 }
 
 function checkSadCodePrerequisites(): boolean {
-    const workspaceFolder = TraceVizStorageUtil.getWorkspaceFolder();
-    if (!workspaceFolder) {
-        return false;
-    }
-
-    const config = TraceVizStorageUtil.readJsonFile<any>(CONSTANTS_FILE_PATH_ARDOCO_CONFIG, workspaceFolder);
-    if (!config) {
-        return false;
-    }
-    
-    // SAD-Code requires: Documentation Path and Code Path
-    return !!(config.documentationPath && config.codePath && 
-             fs.existsSync(config.documentationPath) && 
-             fs.existsSync(config.codePath));
+    const current = readConfigWithCodeModel();
+    // SAD-Code requires: Documentation and Code Model
+    return !!current && fileExists(current.config.documentationPath) && fileExists(current.codeModelPath);
 }
-
-

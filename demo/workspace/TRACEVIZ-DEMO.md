@@ -20,17 +20,23 @@ TraceViz shows trace links between Software Architecture Documentation (SAD) and
    The circle icon in the Trace History title marks sentences without any trace link.
 7. **CSV Direct** imports another CSV file (`sentenceID,codeID`, code paths relative to the workspace root),
    e.g. the files in `tracelinks/`.
+8. **Run ARDoCo yourself:** in the **Traceability Approach** view, expand **ARDoCo** > **Generate Trace Links**
+   and click **ArDoCode (SAD-Code)** (or **TransArC (SAD-SAM-Code)**). TraceViz sends `docs/mediastore.txt`,
+   the code model `models/codeModel.acm` (and the PCM model `models/ms.repository` for TransArC)
+   to the ARDoCo REST API at https://rest.ardoco.de; the result appears as a new Trace History entry after
+   about a minute. The configuration is preset in `.trace-viz/ardoco-config.json`; change it with the gear icon
+   (webview) or the list icon (**Configure ARDoCo (without Webview)**, for browsers that block the webview).
 
 Changes stay in your browser tab only; reloading the page restores the demo.
-Approaches that need local tools or the ARDoCo REST API (ARDoCo, LiSSA, code model extraction)
-are only available in the desktop version of TraceViz.
+Code model extraction (Java) and LiSSA need local tools and are only available in the desktop version of TraceViz.
 
 ## Data and licenses
 
 - `Implementation/` and `README.md`: the [MediaStore3](https://github.com/ArDoCo/MediaStore3) case study
   (commit `94c398fa02b3d6b8d71517522a7206d37ed3a9af`, only the implementation),
   licensed under the GNU General Public License v3.0, see `Implementation/gpl-3.0.txt`.
-- `docs/mediastore.txt` and `tracelinks/goldstandard_sad_2016-code_2016.csv`: SAD and SAD-code gold standard from the
+- `docs/mediastore.txt`, `tracelinks/goldstandard_sad_2016-code_2016.csv`, `models/codeModel.acm` and
+  `models/ms.repository`: SAD, SAD-code gold standard, code model and PCM repository model from the
   [ARDoCo Benchmark](https://github.com/ArDoCo/Benchmark) (commit `e60ddb2676358048131178c925e86a5b33ec38f2`, MIT License).
 - `tracelinks/ardocode_mediastore.csv`: output of ArDoCode on this benchmark project, produced by an
   ARDoCo TLR integration-test run (March 2025); header renamed to `sentenceID,codeID`, links unchanged.

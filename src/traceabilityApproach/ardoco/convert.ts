@@ -15,8 +15,8 @@ export interface ConversionJob {
     type: TraceLinkConversionType;
     /** Input data for the conversion (format depends on type) */
     input: unknown;
-    /** Absolute path to the ACM code model JSON file (required for ARDOCO_SAD_CODE_TO_CSV to resolve paths) */
-    codeModelPath?: string;
+    /** Content of the ACM code model JSON file (required for ARDOCO_SAD_CODE_TO_CSV to resolve paths) */
+    codeModel?: string;
 }
 
 /**
@@ -28,7 +28,7 @@ export interface ConversionJob {
 export function convert(job: ConversionJob): string {
     switch (job.type) {
         case 'ARDOCO_SAD_CODE_TO_CSV':
-            return convertArDoCoSadCodeToCsv(job.input as SadCodeResponse, job.codeModelPath);
+            return convertArDoCoSadCodeToCsv(job.input as SadCodeResponse, job.codeModel);
         case 'CSV_COMPRESS_BY_DIRECTORY':
             return compressCsvByDirectory(job.input as string);
         default:
@@ -39,26 +39,27 @@ export function convert(job: ConversionJob): string {
 /**
  * Converts ArDoCo SAD-Code API response to CSV format
  * @param result ArDoCo API response object with traceLinks array
+ * @param codeModelJson Content of the ACM code model JSON file used to resolve code element IDs to file paths
  * @returns CSV string with sentenceID and codeID columns
  */
 export function convertArDoCoSadCodeToCsv(
     result: SadCodeResponse | { traceLinks?: any[] },
-    codeModelPath?: string
+    codeModelJson?: string
 ): string {
     const lines: string[] = ['sentenceID,codeID'];
     const traceLinks = result.traceLinks || (result as any).result?.traceLinks;
 
     let codeModel: Record<string, any> | undefined;
-    if (codeModelPath && fs.existsSync(codeModelPath)) {
+    if (codeModelJson) {
         try {
-            const raw = JSON.parse(fs.readFileSync(codeModelPath, 'utf8'));
+            const raw = JSON.parse(codeModelJson);
             codeModel = raw?.codeItemRepository?.repository ?? raw?.codeItemRepository ?? raw;
-            Logger.debug(`convertArDoCoSadCodeToCsv: loaded code model from ${codeModelPath}`);
+            Logger.debug('convertArDoCoSadCodeToCsv: loaded code model');
         } catch (e) {
-            Logger.error('convertArDoCoSadCodeToCsv: failed to load code model:', e);
+            Logger.error('convertArDoCoSadCodeToCsv: failed to parse code model:', e);
         }
-    } else if (codeModelPath) {
-        Logger.warn(`convertArDoCoSadCodeToCsv: code model file not found: ${codeModelPath}`);
+    } else {
+        Logger.warn('convertArDoCoSadCodeToCsv: no code model given');
     }
     
     if (!traceLinks || !Array.isArray(traceLinks)) {

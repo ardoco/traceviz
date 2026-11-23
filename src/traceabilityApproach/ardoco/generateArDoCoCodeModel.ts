@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { ArDoCoConfig } from '../../types';
-import { CONSTANTS_FILE_PATH_ARDOCO_CONFIG, CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL } from '../../constants';
+import { CONSTANTS_FILE_PATH_ARDOCO_CODE_MODEL } from '../../constants';
 import { TraceVizStorageUtil } from '../../utils/traceVizStorage.util';
+import { readArDoCoConfig, saveArDoCoConfig } from './configArDoCo';
 
 /**
  * Generates the ArDoCo code model by running the Code Model Extractor JAR
@@ -22,18 +22,14 @@ export async function generateArDoCoCodeModel(): Promise<void> {
         return;
     }
 
-    const config = TraceVizStorageUtil.readJsonFile<ArDoCoConfig>(
-        CONSTANTS_FILE_PATH_ARDOCO_CONFIG,
-        workspaceFolder
-    );
-    
+    const config = readArDoCoConfig(workspaceFolder);
     if (!config) {
-        vscode.window.showErrorMessage('ArDoCo configuration not found. Please configure ArDoCo first.');
+        vscode.window.showErrorMessage('ARDoCo configuration not found. Please configure ARDoCo first.');
         return;
     }
 
     if (!config.jarPath || !config.codePath) {
-        vscode.window.showErrorMessage('JAR path or code path not configured in ArDoCo settings.');
+        vscode.window.showErrorMessage('JAR path or code path not configured in ARDoCo settings.');
         return;
     }
 
@@ -91,6 +87,8 @@ export async function generateArDoCoCodeModel(): Promise<void> {
                     if (code === 0) {
                         // Check if the code model file was created successfully
                         if (fs.existsSync(codeModelFile)) {
+                            // Use the generated code model for trace link generation
+                            saveArDoCoConfig({ codeModelPath: codeModelFile });
                             vscode.window.showInformationMessage('Code model generated successfully!');
                             // Refresh the approach view to update status icons
                             vscode.commands.executeCommand('trace-viz.refreshApproach');

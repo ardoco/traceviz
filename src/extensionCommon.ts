@@ -6,6 +6,9 @@ import { registerLineToFileVisualization } from './visualization/lineToFileVisua
 import { TraceabilityApproachViewProvider } from './views/traceabilityApproachViewProvider';
 import { TraceHistoryViewProvider } from './views/traceHistoryViewProvider';
 import { registerCsvDirectCommand } from './traceabilityApproach/csv/csvDirect';
+import { registerArDoCoQuickConfigCommands } from './traceabilityApproach/ardoco/configArDoCoQuick';
+import { registerArDoCoWebviewCommand } from './traceabilityApproach/ardoco/configArDoCo';
+import { generateSadCodeTraceLinks, generateTransArcTraceLinks } from './traceabilityApproach/ardoco/generateTraceLinks';
 import {
     CONSTANTS_VIEW_ID_APPROACH,
     CONSTANTS_VIEW_ID_HISTORY,
@@ -14,6 +17,8 @@ import {
     CONSTANTS_COMMAND_ARDOCO_GENERATE_LINKS,
     CONSTANTS_COMMAND_SAM_CODE,
     CONSTANTS_COMMAND_SAD_SAM,
+    CONSTANTS_COMMAND_SAD_CODE,
+    CONSTANTS_COMMAND_SAD_SAM_CODE,
     CONSTANTS_COMMAND_REFRESH_APPROACH,
     CONSTANTS_STRING_VSCODE_COMMAND_OPEN_SETTINGS,
     CONSTANTS_STRING_VSCODE_SETTINGS_EXT_PREFIX
@@ -24,13 +29,13 @@ import { Logger } from './utils/logger.util';
  * Options for registering the features shared by the desktop and the web extension
  */
 export interface CommonFeatureOptions {
-    /** Whether features that need Node.js (local JARs, ARDoCo REST API) are available */
+    /** Whether features that need Node.js (local JARs, child processes) are available */
     nodeFeatures: boolean;
 }
 
 /**
  * Registers everything that works in both the desktop (Node.js) and the web extension host:
- * visualization, sidebar views, trace history and CSV Direct import.
+ * visualization, sidebar views, trace history, CSV Direct import and the ARDoCo REST API.
  * @param context VS Code extension context for registering commands and providers
  * @param options Options describing the capabilities of the current extension host
  */
@@ -66,6 +71,16 @@ export function registerCommonFeatures(context: vscode.ExtensionContext, options
 
     // Command: CSV Direct file picker
     registerCsvDirectCommand(context);
+
+    // Commands: ARDoCo configuration (webview, or quick picks without it), selection of an existing code model
+    registerArDoCoWebviewCommand(context);
+    registerArDoCoQuickConfigCommands(context);
+
+    // Commands: ARDoCo trace link generation via the REST API
+    context.subscriptions.push(
+        vscode.commands.registerCommand(CONSTANTS_COMMAND_SAD_CODE, generateSadCodeTraceLinks),
+        vscode.commands.registerCommand(CONSTANTS_COMMAND_SAD_SAM_CODE, generateTransArcTraceLinks)
+    );
 
     // Command: Refresh Trace History
     const refreshHistory = vscode.commands.registerCommand(CONSTANTS_COMMAND_REFRESH_HISTORY, () => {

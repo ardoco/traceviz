@@ -33,7 +33,7 @@ It visualizes links between natural language **Software Architecture Documentati
 
 ### Try it in the browser
 
-A demo with preloaded trace links runs in the browser at <https://ardoco.de/traceviz/>. It only supports preloaded trace links; ARDoCo and LiSSA runs are available in the desktop extension only.
+A demo with preloaded trace links runs in the browser at <https://ardoco.de/traceviz/>. It can also run ArDoCode and TransArC via the ARDoCo REST API with a preset MediaStore configuration and code model; code model extraction and LiSSA are available in the desktop extension only.
 
 ## Getting Started
 

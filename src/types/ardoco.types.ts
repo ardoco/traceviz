@@ -18,6 +18,10 @@ export interface ArDoCoConfig {
     documentationPath: string;
     /** Path to the architecture model file (optional) */
     architectureModelPath: string;
+    /** Path to an existing JSON code model (ACM); if empty, the code model generated into .trace-viz/ is used */
+    codeModelPath?: string;
+    /** Format of the architecture model (PCM or UML); if empty, derived from the file extension */
+    architectureModelFormat?: string;
 }
 
 /**

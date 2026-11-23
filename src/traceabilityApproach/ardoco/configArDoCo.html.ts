@@ -79,6 +79,14 @@ ${CONFIG_WEBVIEW_CSS}
             </div>
 
             <div class="form-group">
+                <label for="codeModelPath">Code Model File (JSON):</label>
+                <div class="input-group">
+                    <input type="text" id="codeModelPath" placeholder="Existing JSON code model (.acm/.json); empty: use the generated code model" value="${escapeHtml(config.codeModelPath ?? '')}" />
+                    <button type="button" class="browse-btn" onclick="browseFile('codeModelPath')">Browse...</button>
+                </div>
+            </div>
+
+            <div class="form-group">
                 <label for="architectureModelPath">Architecture Model Path:</label>
                 <div class="input-group">
                     <input type="text" id="architectureModelPath" placeholder="Path to architecture model file" value="${escapeHtml(config.architectureModelPath)}" />
@@ -113,6 +121,7 @@ ${CONFIG_WEBVIEW_CSS}
                 projectName: document.getElementById('projectName').value,
                 codePath: document.getElementById('codePath').value,
                 documentationPath: document.getElementById('documentationPath').value,
+                codeModelPath: document.getElementById('codeModelPath').value,
                 architectureModelPath: document.getElementById('architectureModelPath').value
             };
 

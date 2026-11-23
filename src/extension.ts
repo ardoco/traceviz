@@ -3,15 +3,9 @@
 import * as vscode from 'vscode';
 import { registerCommonFeatures } from './extensionCommon';
 import { registerBrowseCodeModelExtractorJarCommand } from './commands/browseJar';
-import { registerArDoCoWebviewCommand } from './traceabilityApproach/ardoco/configArDoCo';
 import { registerLissaWebviewCommand } from './traceabilityApproach/lissa/configLissa';
 import { generateArDoCoCodeModel } from './traceabilityApproach/ardoco/generateArDoCoCodeModel';
-import { generateSadCodeTraceLinks, generateTransArcTraceLinks } from './traceabilityApproach/ardoco/generateTraceLinks';
-import {
-    CONSTANTS_COMMAND_ARDOCO_GENERATE_MODEL,
-    CONSTANTS_COMMAND_SAD_CODE,
-    CONSTANTS_COMMAND_SAD_SAM_CODE
-} from './constants';
+import { CONSTANTS_COMMAND_ARDOCO_GENERATE_MODEL } from './constants';
 
 /**
  * This method is called when your extension is activated
@@ -19,14 +13,11 @@ import {
  * @param context VS Code extension context for registering commands and providers
  */
 export function activate(context: vscode.ExtensionContext) {
-	// Features shared with the web extension (visualization, views, CSV Direct)
+	// Features shared with the web extension (visualization, views, CSV Direct, ARDoCo REST API)
 	registerCommonFeatures(context, { nodeFeatures: true });
 
 	// Command: Browse for Code Model Extractor JAR and save to settings
 	registerBrowseCodeModelExtractorJarCommand(context);
-
-	// Command: ArDoCo webview
-	registerArDoCoWebviewCommand(context);
 
 	// Command: LiSSA webview
 	registerLissaWebviewCommand(context);
@@ -36,17 +27,6 @@ export function activate(context: vscode.ExtensionContext) {
 		await generateArDoCoCodeModel();
 	});
 	context.subscriptions.push(ardoCoGenerateModel);
-
-	// Command: SAD-Code Trace Links
-	const sadCode = vscode.commands.registerCommand(CONSTANTS_COMMAND_SAD_CODE, async () => {
-		await generateSadCodeTraceLinks();
-	});
-	context.subscriptions.push(sadCode);
-
-	const sadSamCode = vscode.commands.registerCommand(CONSTANTS_COMMAND_SAD_SAM_CODE, async () => {
-		await generateTransArcTraceLinks();
-	});
-	context.subscriptions.push(sadSamCode);
 }
 
 /**
