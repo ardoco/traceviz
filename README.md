@@ -5,22 +5,35 @@ It visualizes links between natural language **Software Architecture Documentati
 
 ![Overview](.images/traceviz-overview.png)
 
-*Colored gutter dots mark SAD-Code trace links. Hovering a line reveals per-set counts and a Quick Pick listing linked code files for one-click navigation. The sidebar shows available TLR approaches and trace history.*
+*Colored gutter dots mark SAD-Code trace links of the active sets. A CodeLens above each linked line summarizes both sets, and the hover shows which code files are linked by both sets, which only by one, and the precision, recall and F1 of an approach against a gold standard. The sidebar lists the available TLR approaches and the Trace History.*
+
+![Navigation](.images/traceviz-navigation.png)
+
+*In a linked code file, a CodeLens at the top and badges in the file explorer show how many documentation sentences link to it. The Quick Pick lists these sentences with a colored icon and the sentence text, and marks each one as linked by both sets or only by one.*
 
 ---
 
 ## Features
 
-- **Gutter markers** — lines with trace links are annotated with a colored dot; the color identifies the active trace link set
-- **Hover tooltips** — hovering a marked line shows the number of linked files per set
-- **Quick Pick navigation** — click a gutter dot, CodeLens annotation, or the status bar button to open a Quick Pick list of linked files for one-click navigation
-- **Side-by-side comparison** — up to two trace link sets can be loaded simultaneously in distinct colors (e.g., blue for ArDoCode, red for TransArC)
+- **Named trace link sets** — every set in the Trace History has a readable name and a color; the name is used in the hover, CodeLens, Quick Pick, and status bar
+- **Gutter markers** — lines with trace links are annotated with colored dots, one per active set
+- **Hover with legend** — hovering a marked line shows a legend of the active sets, the linked files per set, and clickable file names that open the code
+- **CodeLens** — a CodeLens above each linked documentation line summarizes the links per set; linked code files get a CodeLens at the top that summarizes the linked documentation sentences
+- **Quick Pick navigation** — click a gutter dot, CodeLens, or status bar item to pick a linked file (from documentation) or a linked sentence (from code); entries have colored icons and show the sentence text
+- **Side-by-side comparison** — up to two trace link sets can be active at once; links are grouped into "in both", "only A", and "only B"
+- **Evaluation against a gold standard** — if one of the two sets is a gold standard (`isGoldStandard` in the history entry, or "gold" in its name), the groups are labeled TP, FP, and FN, and the hover shows precision, recall, and F1
+- **Explorer badges and overview ruler** — files with trace links get a colored badge in the file explorer, and linked lines are marked in the overview ruler
+- **Unlinked sentences** — the command **TraceViz: Toggle Unlinked Sentences** marks documentation lines without any trace link
 - **Directory heuristic** — when all files in a folder link to the same line, a single directory-level dot replaces per-file markers, reducing visual noise
-- **Trace History** — past runs are persisted in a history panel and can be re-activated with one click
+- **Trace History** — past runs are persisted in a history panel with a summary per set (links, sentences, files) and can be re-activated with one click
 - **Multiple trace link sources**:
   - **ARDoCo REST API** — ArDoCode (SAD-Code) and TransArC (SAD-SAM-Code) via [rest.ardoco.de](https://rest.ardoco.de)
   - **LiSSA** — generic RAG-based TLR via a local JAR invocation
   - **CSV Direct** — import trace links from any tool producing the expected format
+
+### Try it in the browser
+
+A demo with preloaded trace links runs in the browser at <https://ardoco.github.io/traceviz/>. It only supports preloaded trace links; ARDoCo and LiSSA runs are available in the desktop extension only.
 
 ## Getting Started
 
@@ -56,7 +69,8 @@ It visualizes links between natural language **Software Architecture Documentati
    - **ARDoCo** → configure the REST API endpoint, select a pipeline (ArDoCode or TransArC), and generate trace links
    - **LiSSA** → point to a local LiSSA JAR and run
    - **CSV Direct** → import a CSV file with pre-generated trace links
-4. **Navigate** — gutter dots appear on every linked line. Hover for counts, click to open the Quick Pick navigator.
+4. **Navigate** — gutter dots appear on every linked line. Hover for the linked files per set, click a dot or CodeLens to open the Quick Pick navigator.
+5. **Compare** — activate a second set in the Trace History to see where the sets agree; if one of them is a gold standard, the hover also shows TP, FP, FN, precision, recall, and F1.
 
 ### Configuration
 
