@@ -137,6 +137,39 @@
         "command": "trace-viz.compressHistoryCsv",
         "title": "Compress Trace Links (Group by Directory)",
         "icon": "$(folder)"
+      },
+      {
+        "command": "trace-viz.toggleUnlinkedSentences",
+        "title": "Toggle Unlinked Sentences",
+        "category": "TraceViz",
+        "icon": "$(circle-large-outline)"
+      }
+    ],
+    "colors": [
+      {
+        "id": "traceViz.blue",
+        "description": "Color of a trace link set shown in blue (gutter dots, overview ruler, explorer badges).",
+        "defaults": { "dark": "#1f6feb", "light": "#1f6feb", "highContrast": "#1f6feb", "highContrastLight": "#1f6feb" }
+      },
+      {
+        "id": "traceViz.red",
+        "description": "Color of a trace link set shown in red (gutter dots, overview ruler, explorer badges).",
+        "defaults": { "dark": "#f85149", "light": "#f85149", "highContrast": "#f85149", "highContrastLight": "#f85149" }
+      },
+      {
+        "id": "traceViz.orange",
+        "description": "Color of a trace link set shown in orange (gutter dots, overview ruler, explorer badges).",
+        "defaults": { "dark": "#d29922", "light": "#d29922", "highContrast": "#d29922", "highContrastLight": "#d29922" }
+      },
+      {
+        "id": "traceViz.green",
+        "description": "Color of a trace link set shown in green (gutter dots, overview ruler, explorer badges).",
+        "defaults": { "dark": "#3fb950", "light": "#3fb950", "highContrast": "#3fb950", "highContrastLight": "#3fb950" }
+      },
+      {
+        "id": "traceViz.unlinked",
+        "description": "Overview ruler mark of documentation sentences without trace links.",
+        "defaults": { "dark": "#8b949e", "light": "#8b949e", "highContrast": "#8b949e", "highContrastLight": "#8b949e" }
       }
     ],
     "viewsContainers": {
@@ -166,6 +199,11 @@
           "command": "trace-viz.openSettings",
           "when": "view == traceViz.approach",
           "group": "navigation@99"
+        },
+        {
+          "command": "trace-viz.toggleUnlinkedSentences",
+          "when": "view == traceViz.history",
+          "group": "navigation@1"
         },
         {
           "command": "trace-viz.openSettings",

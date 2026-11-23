@@ -1,61 +1,39 @@
 import * as vscode from 'vscode';
 import { VizColor } from '../types';
-import {
-    CONSTANTS_NUMBER_SVG_WIDTH,
-    CONSTANTS_NUMBER_SVG_HEIGHT,
-    CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_X,
-    CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_Y,
-    CONSTANTS_NUMBER_SVG_CIRCLE_RADIUS,
-    CONSTANTS_NUMBER_SVG_CIRCLE_STROKE_WIDTH,
-    CONSTANTS_NUMBER_SVG_COMPOSITE_POSITION_SINGLE,
-    CONSTANTS_NUMBER_SVG_COMPOSITE_POSITION_FIRST,
-    CONSTANTS_NUMBER_SVG_COMPOSITE_POSITION_SECOND,
-    CONSTANTS_NUMBER_MAX_COLORS_COMPOSITE,
-    CONSTANTS_COLOR_HEX_BLUE,
-    CONSTANTS_COLOR_HEX_RED,
-    CONSTANTS_COLOR_HEX_ORANGE,
-    CONSTANTS_COLOR_HEX_GREEN,
-    CONSTANTS_STRING_SVG_NAMESPACE,
-    CONSTANTS_STRING_SVG_DATA_URI_PREFIX
-} from '../constants';
+import { CONSTANTS_NUMBER_MAX_COLORS_COMPOSITE } from '../constants';
+import { COLOR_HEX, dotIconUri, dotsSvg, hollowDotIconUri, themeColor, UNLINKED_THEME_COLOR_ID } from '../visualization/palette';
 
 /**
- * Service for creating text editor decorations
+ * Service for creating text editor decorations (colors come from the palette module)
  */
 export class DecorationService {
     /**
      * Creates a gutter dot decoration with the specified color
-     * @param colorHex Hex color code (e.g., '#1f6feb')
+     * @param color Set color
      * @returns Text editor decoration type
      */
-    static createGutterDot(colorHex: string): vscode.TextEditorDecorationType {
-        const svg = `<svg width="${CONSTANTS_NUMBER_SVG_WIDTH}" height="${CONSTANTS_NUMBER_SVG_HEIGHT}" viewBox="0 0 ${CONSTANTS_NUMBER_SVG_WIDTH} ${CONSTANTS_NUMBER_SVG_HEIGHT}" xmlns="${CONSTANTS_STRING_SVG_NAMESPACE}"><circle cx="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_X}" cy="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_Y}" r="${CONSTANTS_NUMBER_SVG_CIRCLE_RADIUS}" fill="${colorHex}" stroke="${colorHex}" stroke-width="${CONSTANTS_NUMBER_SVG_CIRCLE_STROKE_WIDTH}"/></svg>`;
-        const uri = vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + btoa(svg));
-        return vscode.window.createTextEditorDecorationType({ gutterIconPath: uri, gutterIconSize: 'contain' });
+    static createGutterDot(color: VizColor): vscode.TextEditorDecorationType {
+        return vscode.window.createTextEditorDecorationType({ gutterIconPath: dotIconUri(color), gutterIconSize: 'contain' });
     }
 
     /**
      * Builds SVG for multiple dots (up to 2)
-     * @param hexColors Array of hex color codes
+     * @param colors Set colors
      * @returns SVG string
      */
-    static buildMultiDotSvg(hexColors: string[]): string {
-        // Positions for up to two dots
-        const positions = hexColors.length === 1 ? [CONSTANTS_NUMBER_SVG_COMPOSITE_POSITION_SINGLE] : [CONSTANTS_NUMBER_SVG_COMPOSITE_POSITION_FIRST, CONSTANTS_NUMBER_SVG_COMPOSITE_POSITION_SECOND];
-        const circles = hexColors.map((hex, i) => `<circle cx="${positions[i]}" cy="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_Y}" r="${CONSTANTS_NUMBER_SVG_CIRCLE_RADIUS}" fill="${hex}" stroke="${hex}" stroke-width="${CONSTANTS_NUMBER_SVG_CIRCLE_STROKE_WIDTH}"/>`).join('');
-        return `<svg width="${CONSTANTS_NUMBER_SVG_WIDTH}" height="${CONSTANTS_NUMBER_SVG_HEIGHT}" viewBox="0 0 ${CONSTANTS_NUMBER_SVG_WIDTH} ${CONSTANTS_NUMBER_SVG_HEIGHT}" xmlns="${CONSTANTS_STRING_SVG_NAMESPACE}">${circles}</svg>`;
+    static buildMultiDotSvg(colors: VizColor[]): string {
+        return dotsSvg(colors);
     }
 
     /**
-     * Creates a URI for a single coloured circle icon (for use as a TreeItem iconPath).
+     * Creates a URI for a single coloured circle icon (for use as a TreeItem or Quick Pick iconPath).
      * Because the colour is embedded in the SVG it is not overridden by VS Code's
      * list-selection foreground, unlike a ThemeIcon with ThemeColor.
-     * @param colorHex Hex colour code (e.g. '#1f6feb')
+     * @param color Set color
      * @returns URI pointing to an inline SVG data-URI
      */
-    static createCircleIconUri(colorHex: string): vscode.Uri {
-        const svg = `<svg width="${CONSTANTS_NUMBER_SVG_WIDTH}" height="${CONSTANTS_NUMBER_SVG_HEIGHT}" viewBox="0 0 ${CONSTANTS_NUMBER_SVG_WIDTH} ${CONSTANTS_NUMBER_SVG_HEIGHT}" xmlns="${CONSTANTS_STRING_SVG_NAMESPACE}"><circle cx="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_X}" cy="${CONSTANTS_NUMBER_SVG_CIRCLE_CENTER_Y}" r="${CONSTANTS_NUMBER_SVG_CIRCLE_RADIUS}" fill="${colorHex}" stroke="${colorHex}" stroke-width="${CONSTANTS_NUMBER_SVG_CIRCLE_STROKE_WIDTH}"/></svg>`;
-        return vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + btoa(svg));
+    static createCircleIconUri(color: VizColor): vscode.Uri {
+        return dotIconUri(color);
     }
 
     /**
@@ -65,19 +43,31 @@ export class DecorationService {
      */
     static createCompositeDecoration(colors: VizColor[]): vscode.TextEditorDecorationType {
         // Normalize to max 2 colors, sorted key
-        const norm = Array.from(new Set(colors)).slice(0, CONSTANTS_NUMBER_MAX_COLORS_COMPOSITE).sort();
+        const norm = Array.from(new Set(colors)).filter(c => c in COLOR_HEX).slice(0, CONSTANTS_NUMBER_MAX_COLORS_COMPOSITE).sort();
+        return vscode.window.createTextEditorDecorationType({ gutterIconPath: dotIconUri(norm), gutterIconSize: 'contain' });
+    }
 
-        // Map colors to hex
-        const colorHex: Record<VizColor, string> = {
-            blue: CONSTANTS_COLOR_HEX_BLUE,
-            red: CONSTANTS_COLOR_HEX_RED,
-            orange: CONSTANTS_COLOR_HEX_ORANGE,
-            green: CONSTANTS_COLOR_HEX_GREEN
-        };
+    /**
+     * Creates an overview ruler (scroll bar) mark in the color of a set
+     * @param color Set color
+     * @param lane Overview ruler lane of the set
+     * @returns Text editor decoration type
+     */
+    static createOverviewRulerMark(color: VizColor, lane: vscode.OverviewRulerLane): vscode.TextEditorDecorationType {
+        return vscode.window.createTextEditorDecorationType({ overviewRulerColor: themeColor(color), overviewRulerLane: lane });
+    }
 
-        const svg = this.buildMultiDotSvg(norm.map(c => colorHex[c]));
-        const uri = vscode.Uri.parse(CONSTANTS_STRING_SVG_DATA_URI_PREFIX + btoa(svg));
-        return vscode.window.createTextEditorDecorationType({ gutterIconPath: uri, gutterIconSize: 'contain' });
+    /**
+     * Creates the subtle marker of documentation lines that no active set links:
+     * a hollow gray ring in the gutter and a gray mark in the overview ruler
+     * @returns Text editor decoration type
+     */
+    static createUnlinkedLineDecoration(): vscode.TextEditorDecorationType {
+        return vscode.window.createTextEditorDecorationType({
+            gutterIconPath: hollowDotIconUri(),
+            gutterIconSize: 'contain',
+            overviewRulerColor: new vscode.ThemeColor(UNLINKED_THEME_COLOR_ID),
+            overviewRulerLane: vscode.OverviewRulerLane.Right
+        });
     }
 }
-

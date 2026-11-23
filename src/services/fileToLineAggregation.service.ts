@@ -130,8 +130,10 @@ export class FileToLineAggregationService {
 
     /**
      * Recursively gets all files in a directory
+     * @param dirPath Absolute path of the directory
+     * @returns Absolute paths of all files below the directory
      */
-    private static getAllFilesInDirectory(dirPath: string): string[] {
+    static getAllFilesInDirectory(dirPath: string): string[] {
         const files: string[] = [];
         
         try {

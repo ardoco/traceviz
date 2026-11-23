@@ -28,6 +28,13 @@ export interface TraceHistoryEntry {
     color?: VizColor;
     /** Path to the documentation file (for CSV Direct entries) */
     documentationPath?: string;
+    /** Human-readable name of this trace link set (optional; falls back to approach and original name) */
+    label?: string;
+    /**
+     * Whether this set is a gold standard that other sets are evaluated against.
+     * If omitted, a set counts as gold standard when its label, original name or approach contains "gold".
+     */
+    isGoldStandard?: boolean;
 }
 
 /**
@@ -40,4 +47,8 @@ export interface ActiveHistoryItem {
     csvPath: string;
     /** Color assigned to this visualization */
     color: VizColor;
+    /** Human-readable name of this trace link set */
+    name: string;
+    /** Whether this set is a gold standard (explicit flag or "gold" in its name) */
+    isGoldStandard: boolean;
 }
